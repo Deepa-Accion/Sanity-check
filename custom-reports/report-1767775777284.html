@@ -1,0 +1,161 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Custom Test Report</title>
+<style>body{font-family:Inter,Arial,sans-serif;margin:24px;color:#222}h1{font-size:20px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #eee;text-align:left;vertical-align:top}thead th{background:#f6f8fa} .passed{color:#16a34a;font-weight:600}.failed{color:#ef4444;font-weight:600}.skipped{color:#6b7280}.summary{margin-bottom:16px;padding:12px;border-radius:6px;background:#fff} .steps{white-space:pre-wrap;color:#333;background:#f8f9fb;padding:10px;border-radius:6px;border:1px solid #e9eef6;font-size:12px;font-family:monospace;max-height:200px;overflow-y:auto} .error{white-space:pre-wrap;color:#991b1b;background:#fee2e2;padding:10px;border-radius:6px;border:1px solid #fecaca;font-size:12px;font-family:monospace;max-height:200px;overflow-y:auto}</style>
+</head><body>
+<h1>Custom Test Report</h1>
+<div class="summary">
+<div><strong>Total:</strong> 10 &nbsp; <strong>Passed:</strong> 6 &nbsp; <strong>Failed:</strong> 3 &nbsp; <strong>Skipped:</strong> 0 <span style="margin-left:12px"><strong>Duration:</strong> 143s</span></div>
+<div style="margin-top:8px"><strong>Scenario:</strong> Breezeai sanity dev &nbsp; <strong>Browser:</strong> chromium</div>
+</div>
+<div class="summary" style="border-left:4px solid #ef4444;margin-bottom:12px">
+<div style="font-weight:600;color:#ef4444;margin-bottom:8px">Failed tests</div>
+<ul>
+<li style="margin-bottom:6px"><strong>Open AllCards in dashboard</strong><div style="font-size:12px;color:#666"></div><div style="margin-top:4px;color:#c52929;font-family:monospace;white-space:pre-wrap">Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)
+Expected: visible
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 15000ms[22m
+[2m  - waiting for locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)[22m
+</div></li>
+<li style="margin-bottom:6px"><strong>Generate Artecture metrics</strong><div style="font-size:12px;color:#666"></div><div style="margin-top:4px;color:#c52929;font-family:monospace;white-space:pre-wrap">Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)
+Expected: visible
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 15000ms[22m
+[2m  - waiting for locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)[22m
+</div></li>
+<li style="margin-bottom:6px"><strong>Generate design metrics</strong><div style="font-size:12px;color:#666"></div><div style="margin-top:4px;color:#c52929;font-family:monospace;white-space:pre-wrap">Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)
+Expected: visible
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 15000ms[22m
+[2m  - waiting for locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)[22m
+</div></li>
+</ul>
+</div>
+<table>
+<thead><tr><th>Test</th><th>Result</th><th>Duration (ms)</th><th>Browser</th><th>Steps</th><th>Details</th></tr></thead>
+<tbody>
+<tr>
+<td>BreezeAI dashboard Launched</td>
+<td class="passed">PASSED</td>
+<td>4160</td>
+<td>chromium</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>BreezeAI create project</td>
+<td class="passed">PASSED</td>
+<td>4961</td>
+<td>chromium</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Upload document in KnowledgeBase</td>
+<td class="passed">PASSED</td>
+<td>16153</td>
+<td>chromium</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Theam Change</td>
+<td class="passed">PASSED</td>
+<td>5539</td>
+<td>chromium</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Search a project and select</td>
+<td class="passed">PASSED</td>
+<td>6018</td>
+<td>chromium</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Select first project displayed</td>
+<td class="passed">PASSED</td>
+<td>6728</td>
+<td>chromium</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Generate functional metrics</td>
+<td class="failed">FAILED</td>
+<td>30154</td>
+<td>chromium</td>
+<td></td>
+<td><div class="error">[31mTest timeout of 30000ms exceeded.[39m</div><div style="font-size:12px;color:#666;margin-top:6px">Raw: timedOut</div></td>
+</tr>
+<tr>
+<td>Open AllCards in dashboard</td>
+<td class="failed">FAILED</td>
+<td>19208</td>
+<td>chromium</td>
+<td></td>
+<td><div class="error">Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)
+Expected: visible
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 15000ms[22m
+[2m  - waiting for locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)[22m
+</div></td>
+</tr>
+<tr>
+<td>Generate Artecture metrics</td>
+<td class="failed">FAILED</td>
+<td>19272</td>
+<td>chromium</td>
+<td></td>
+<td><div class="error">Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)
+Expected: visible
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 15000ms[22m
+[2m  - waiting for locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)[22m
+</div></td>
+</tr>
+<tr>
+<td>Generate design metrics</td>
+<td class="failed">FAILED</td>
+<td>18974</td>
+<td>chromium</td>
+<td></td>
+<td><div class="error">Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+Locator: locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)
+Expected: visible
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+[2m  - Expect &quot;toBeVisible&quot; with timeout 15000ms[22m
+[2m  - waiting for locator(&#39;li.relative &gt; button[aria-label=\&#39;Dashboard\&#39;]&#39;)[22m
+</div></td>
+</tr>
+</tbody></table>
+</body></html>

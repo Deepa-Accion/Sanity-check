@@ -1,0 +1,18 @@
+Scenario: Invalid login with incorrect username
+    Given the user navigates to the Breeze AI login page
+    When the user enters an invalid username and valid password
+    Then the user should see an error message "Invalid username or password"
+    And the user should not be logged in
+
+  Scenario: Invalid login with incorrect password
+    Given the user navigates to the Breeze AI login page
+    When the user enters a valid username and an invalid password
+    Then the user should see an error message "Invalid username or password"
+    And the user should not be logged in
+
+  Scenario: Invalid login with incorrect MFA code
+    Given the user navigates to the Breeze AI login page
+    When the user enters valid username and password
+    And the user enters an invalid MFA code
+    Then the user should see an error message "Invalid MFA code"
+    And the user should not be logged in

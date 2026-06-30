@@ -1,0 +1,288 @@
+{
+  "config": {
+    "configFile": "D:\\Sanity\\fresh-react-node-project\\playwright.config.js",
+    "rootDir": "D:/Sanity/fresh-react-node-project",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "D:\\Sanity\\fresh-react-node-project\\global-setup.js",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ],
+      [
+        "html"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "D:/Sanity/fresh-react-node-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "D:/Sanity/fresh-react-node-project",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "D:/Sanity/fresh-react-node-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "D:/Sanity/fresh-react-node-project",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "D:/Sanity/fresh-react-node-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "D:/Sanity/fresh-react-node-project",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "tests\\sanity.spec.mjs",
+      "file": "tests/sanity.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Sanity Suite",
+          "file": "tests/sanity.spec.mjs",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "@sanity BreezeAI dashboard Launched",
+              "ok": true,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4457,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Page title after execution: Breeze.AI\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:55:42.762Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-0e70a826ca24c8888a9e",
+              "file": "tests/sanity.spec.mjs",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "@sanity BreezeAI create project",
+              "ok": true,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5115,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "https://ai.accionbreeze.com/dashboard/80bff2bc-0855-41d8-b6d5-8ca76b945544\n"
+                        },
+                        {
+                          "text": "80bff2bc-0855-41d8-b6d5-8ca76b945544\n"
+                        },
+                        {
+                          "text": "Navigated to project: SanityCheck-2026-01-05T08-55-50-937Z-Automation (ID: 80bff2bc-0855-41d8-b6d5-8ca76b945544)\n"
+                        },
+                        {
+                          "text": "Project ID: 80bff2bc-0855-41d8-b6d5-8ca76b945544\n"
+                        },
+                        {
+                          "text": "Project Name: SanityCheck-2026-01-05T08-55-50-937Z-Automation\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:55:47.719Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-69b022ade38b56f85adc",
+              "file": "tests/sanity.spec.mjs",
+              "line": 21,
+              "column": 3
+            },
+            {
+              "title": "@sanity Open Basic ProjectForTesting",
+              "ok": true,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5967,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Navigated to project: SanityCheck-2026-01-05T08-55-50-937Z-Automation (ID: 80bff2bc-0855-41d8-b6d5-8ca76b945544)\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:55:52.872Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-b1bcf73a1a8fc4fb9d9b",
+              "file": "tests/sanity.spec.mjs",
+              "line": 30,
+              "column": 3
+            },
+            {
+              "title": "@sanity Open AllCards in dashboard",
+              "ok": true,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 15149,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Navigated to project: SanityCheck-2026-01-05T08-55-50-937Z-Automation (ID: 80bff2bc-0855-41d8-b6d5-8ca76b945544)\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:55:58.879Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-549dd4b5f24784390267",
+              "file": "tests/sanity.spec.mjs",
+              "line": 35,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-01-05T08:55:40.008Z",
+    "duration": 34432.616,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -1,0 +1,103 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - img "Breeze.AI" [ref=e6]
+        - generic [ref=e7]:
+          - heading "Breeze.AI" [level=1] [ref=e8]
+          - paragraph [ref=e9]: By Accion Labs
+      - button "Sign in with Breeze AI" [ref=e10] [cursor=pointer]:
+        - generic [ref=e11]: Sign in with Breeze AI
+    - iframe [ref=e13]:
+      - generic [ref=f1e3]:
+        - img "Company Logo" [ref=f1e5]
+        - generic [ref=f1e6]:
+          - generic [ref=f1e8]: Your browser does not support the video tag.
+          - heading "Breeze.AI" [level=1] [ref=f1e9]
+          - heading "Semantic Engineering Framework" [level=2] [ref=f1e10]
+          - paragraph [ref=f1e11]: Eliminate the "Manual Translation Tax" with machine-readable knowledge graphs that automate 95% of development while preserving complete human control over business logic and architecture.
+          - generic [ref=f1e12]:
+            - generic [ref=f1e13]:
+              - heading "Transforming Software Engineering" [level=3] [ref=f1e14]
+              - generic [ref=f1e15]:
+                - generic [ref=f1e16]:
+                  - generic [ref=f1e18]: ⚠️
+                  - heading "The Challenge" [level=4] [ref=f1e19]
+                  - paragraph [ref=f1e20]: The "Manual Translation Tax" - massive costs from translating human requirements into code, causing specification drift, technical debt, and project failures.
+                  - generic [ref=f1e21]:
+                    - generic [ref=f1e22]: • Manual Translation Tax Crisis
+                    - generic [ref=f1e23]: • Why Traditional Approaches Fail
+                    - generic [ref=f1e24]: • Legacy System Transformation
+                - generic [ref=f1e25]:
+                  - generic [ref=f1e27]: 🧠
+                  - heading "The Solution" [level=4] [ref=f1e28]
+                  - paragraph [ref=f1e29]: Machine-readable semantic knowledge graphs that eliminate ambiguity and enable perfect traceability from requirements to code.
+                  - generic [ref=f1e30]:
+                    - generic [ref=f1e31]: • Revolutionary Capabilities
+                    - generic [ref=f1e32]: • Competitive Advantages
+                    - generic [ref=f1e33]: • System Architecture
+                - generic [ref=f1e34]:
+                  - generic [ref=f1e36]: 🏗️
+                  - heading "The Framework" [level=4] [ref=f1e37]
+                  - paragraph [ref=f1e38]: Four interconnected ontologies (Functional, Design, Architecture, Code) with three-phase transformation methodology.
+                  - generic [ref=f1e39]:
+                    - generic [ref=f1e40]: • Semantic Model Structure
+                    - generic [ref=f1e41]: • Process Flow Methodology
+                    - generic [ref=f1e42]: • Cross-Ontology Relationships
+              - generic [ref=f1e43]:
+                - heading "Why This Matters Now" [level=4] [ref=f1e44]
+                - paragraph [ref=f1e45]:
+                  - strong [ref=f1e46]: 95% automation
+                  - text: of software development while maintaining
+                  - strong [ref=f1e47]: complete human control
+                  - text: over business logic and architectural decisions
+                - generic [ref=f1e48]:
+                  - generic [ref=f1e49]:
+                    - generic [ref=f1e50]: ✓
+                    - generic [ref=f1e51]: Zero specification drift
+                  - generic [ref=f1e52]:
+                    - generic [ref=f1e53]: ✓
+                    - generic [ref=f1e54]: Perfect traceability
+                  - generic [ref=f1e55]:
+                    - generic [ref=f1e56]: ✓
+                    - generic [ref=f1e57]: Automatic change propagation
+            - generic [ref=f1e58]:
+              - generic [ref=f1e59]:
+                - 'heading "🎯 Quick Start: Understanding the Problem" [level=4] [ref=f1e60]':
+                  - generic [ref=f1e61]: 🎯
+                  - text: "Quick Start: Understanding the Problem"
+                - paragraph [ref=f1e62]: Begin with the core challenge facing software engineering today and see how Breeze.AI provides a breakthrough solution.
+                - button "Start with The Challenge" [ref=f1e63] [cursor=pointer]:
+                  - text: Start with The Challenge
+                  - img [ref=f1e64]
+              - generic [ref=f1e66]:
+                - 'heading "🏛️ Deep Dive: System Architecture" [level=4] [ref=f1e67]':
+                  - generic [ref=f1e68]: 🏛️
+                  - text: "Deep Dive: System Architecture"
+                - paragraph [ref=f1e69]: Explore the technical architecture, core components, and engineering principles behind the Breeze.AI platform.
+                - button "Explore Architecture" [ref=f1e70] [cursor=pointer]:
+                  - text: Explore Architecture
+                  - img [ref=f1e71]
+            - generic [ref=f1e73]:
+              - heading "🎪 Interactive Presentation Mode" [level=4] [ref=f1e74]:
+                - generic [ref=f1e75]: 🎪
+                - text: Interactive Presentation Mode
+              - paragraph [ref=f1e76]: This guide features an interactive slide mode - perfect for presentations, training, or focused learning. Toggle between document and slide views anytime!
+              - generic [ref=f1e77]:
+                - generic [ref=f1e78]:
+                  - generic [ref=f1e79]: 📖
+                  - generic [ref=f1e80]: Document Mode
+                - generic [ref=f1e81]:
+                  - generic [ref=f1e82]: 🖼️
+                  - generic [ref=f1e83]: Slide Mode
+                - generic [ref=f1e84]:
+                  - generic [ref=f1e85]: ⌨️
+                  - generic [ref=f1e86]: Keyboard Navigation
+                - generic [ref=f1e87]:
+                  - generic [ref=f1e88]: 🖨️
+                  - generic [ref=f1e89]: Print Friendly
+  - region "Notifications alt+T"
+```

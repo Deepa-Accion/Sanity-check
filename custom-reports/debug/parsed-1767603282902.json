@@ -1,0 +1,369 @@
+{
+  "config": {
+    "configFile": "D:\\Sanity\\fresh-react-node-project\\playwright.config.js",
+    "rootDir": "D:/Sanity/fresh-react-node-project",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "D:\\Sanity\\fresh-react-node-project\\global-setup.js",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ],
+      [
+        "html"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "D:/Sanity/fresh-react-node-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "D:/Sanity/fresh-react-node-project",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "D:/Sanity/fresh-react-node-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "D:/Sanity/fresh-react-node-project",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "D:/Sanity/fresh-react-node-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "D:/Sanity/fresh-react-node-project",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "tests\\sanity.spec.mjs",
+      "file": "tests/sanity.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Sanity Suite",
+          "file": "tests/sanity.spec.mjs",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "@sanity BreezeAI dashboard Launched",
+              "ok": true,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11665,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Page title after execution: Breeze.AI\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:53:44.215Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-0e70a826ca24c8888a9e",
+              "file": "tests/sanity.spec.mjs",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "@sanity BreezeAI create project",
+              "ok": false,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 13731,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /create project/i })\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /create project/i })\u001b[22m\n\u001b[2m    - waiting for\" https://login-new.accionbreeze.com/realms/accionlabswebsite/protocol/openid-connect/auth?client_id=isometric&redirect_uri=https%3A%2F%2Fai.accionbreeze.com%2Fcallback&response_type=code&scope=openid&…\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"https://login.microsoftonline.com/9e19c113-9fbf-4030-b93e-10fc81bd1965/oauth2/v2.0/authorize?scope=openid&state=AnW4PfViKQKo-GSBRjk5EijBrLC8qM39ZiOg8-Vmseg.bQBRDzFtwG4.gmDhLP6cRiSjMESVGbT9eQ&response…\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /create project/i })\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /create project/i })\u001b[22m\n\u001b[2m    - waiting for\" https://login-new.accionbreeze.com/realms/accionlabswebsite/protocol/openid-connect/auth?client_id=isometric&redirect_uri=https%3A%2F%2Fai.accionbreeze.com%2Fcallback&response_type=code&scope=openid&…\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"https://login.microsoftonline.com/9e19c113-9fbf-4030-b93e-10fc81bd1965/oauth2/v2.0/authorize?scope=openid&state=AnW4PfViKQKo-GSBRjk5EijBrLC8qM39ZiOg8-Vmseg.bQBRDzFtwG4.gmDhLP6cRiSjMESVGbT9eQ&response…\"\u001b[22m\n\n    at createProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:14:27)\n    at D:\\Sanity\\fresh-react-node-project\\tests\\sanity.spec.mjs:25:23",
+                        "location": {
+                          "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                          "column": 27,
+                          "line": 14
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39mPages\\dashboardPage.js:14\n\n\u001b[0m \u001b[90m 12 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m createProject(page\u001b[33m,\u001b[39m projectName\u001b[33m,\u001b[39m tag \u001b[33m=\u001b[39m \u001b[36mnull\u001b[39m) {\n \u001b[90m 13 |\u001b[39m   \u001b[36mconst\u001b[39m createBtn \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mgetByRole(\u001b[32m\"button\"\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[35m/create project/i\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 14 |\u001b[39m   \u001b[36mawait\u001b[39m expect(createBtn)\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 15 |\u001b[39m   \u001b[36mawait\u001b[39m createBtn\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n \u001b[90m 16 |\u001b[39m\n \u001b[90m 17 |\u001b[39m   \u001b[36mconst\u001b[39m nameInput \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mgetByPlaceholder(\u001b[35m/Enter component name/i\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                            "column": 27,
+                            "line": 14
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /create project/i })\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /create project/i })\u001b[22m\n\u001b[2m    - waiting for\" https://login-new.accionbreeze.com/realms/accionlabswebsite/protocol/openid-connect/auth?client_id=isometric&redirect_uri=https%3A%2F%2Fai.accionbreeze.com%2Fcallback&response_type=code&scope=openid&…\" navigation to finish...\u001b[22m\n\u001b[2m    - navigated to \"https://login.microsoftonline.com/9e19c113-9fbf-4030-b93e-10fc81bd1965/oauth2/v2.0/authorize?scope=openid&state=AnW4PfViKQKo-GSBRjk5EijBrLC8qM39ZiOg8-Vmseg.bQBRDzFtwG4.gmDhLP6cRiSjMESVGbT9eQ&response…\"\u001b[22m\n\n\n   at Pages\\dashboardPage.js:14\n\n  12 | export async function createProject(page, projectName, tag = null) {\n  13 |   const createBtn = page.getByRole(\"button\", { name: /create project/i });\n> 14 |   await expect(createBtn).toBeVisible({ timeout: 10000 });\n     |                           ^\n  15 |   await createBtn.click();\n  16 |\n  17 |   const nameInput = page.getByPlaceholder(/Enter component name/i);\n    at createProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:14:27)\n    at D:\\Sanity\\fresh-react-node-project\\tests\\sanity.spec.mjs:25:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:53:56.434Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Sanity\\fresh-react-node-project\\test-results\\tests-sanity-Sanity-Suite-sanity-BreezeAI-create-project-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Sanity\\fresh-react-node-project\\test-results\\tests-sanity-Sanity-Suite-sanity-BreezeAI-create-project-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                        "column": 27,
+                        "line": 14
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-69b022ade38b56f85adc",
+              "file": "tests/sanity.spec.mjs",
+              "line": 21,
+              "column": 3
+            },
+            {
+              "title": "@sanity Open Basic ProjectForTesting",
+              "ok": false,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 13520,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByPlaceholder(/Search projects.../i)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByPlaceholder(/Search projects.../i)\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByPlaceholder(/Search projects.../i)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByPlaceholder(/Search projects.../i)\u001b[22m\n\n    at searchProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:99:23)\n    at selectProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:106:9)\n    at D:\\Sanity\\fresh-react-node-project\\tests\\sanity.spec.mjs:32:23",
+                        "location": {
+                          "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                          "column": 23,
+                          "line": 99
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39mPages\\dashboardPage.js:99\n\n\u001b[0m \u001b[90m  97 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m searchProject(page\u001b[33m,\u001b[39m projectName) {\n \u001b[90m  98 |\u001b[39m   \u001b[36mconst\u001b[39m input \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mgetByPlaceholder(\u001b[35m/Search projects.../i\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  99 |\u001b[39m   \u001b[36mawait\u001b[39m expect(input)\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 100 |\u001b[39m   \u001b[36mawait\u001b[39m input\u001b[33m.\u001b[39mfill(projectName)\u001b[33m;\u001b[39m\n \u001b[90m 101 |\u001b[39m   \u001b[36mconst\u001b[39m result \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m`text=\"${projectName}\"`\u001b[39m)\u001b[33m.\u001b[39mfirst()\u001b[33m;\u001b[39m\n \u001b[90m 102 |\u001b[39m   \u001b[90m//await expect(result).toBeVisible({ timeout: 10000 });\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                            "column": 23,
+                            "line": 99
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByPlaceholder(/Search projects.../i)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByPlaceholder(/Search projects.../i)\u001b[22m\n\n\n   at Pages\\dashboardPage.js:99\n\n   97 | export async function searchProject(page, projectName) {\n   98 |   const input = page.getByPlaceholder(/Search projects.../i);\n>  99 |   await expect(input).toBeVisible({ timeout: 10000 });\n      |                       ^\n  100 |   await input.fill(projectName);\n  101 |   const result = page.locator(`text=\"${projectName}\"`).first();\n  102 |   //await expect(result).toBeVisible({ timeout: 10000 });\n    at searchProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:99:23)\n    at selectProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:106:9)\n    at D:\\Sanity\\fresh-react-node-project\\tests\\sanity.spec.mjs:32:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:54:12.322Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Sanity\\fresh-react-node-project\\test-results\\tests-sanity-Sanity-Suite--6b8e8-pen-Basic-ProjectForTesting-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Sanity\\fresh-react-node-project\\test-results\\tests-sanity-Sanity-Suite--6b8e8-pen-Basic-ProjectForTesting-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                        "column": 23,
+                        "line": 99
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-b1bcf73a1a8fc4fb9d9b",
+              "file": "tests/sanity.spec.mjs",
+              "line": 30,
+              "column": 3
+            },
+            {
+              "title": "@sanity Open AllCards in dashboard",
+              "ok": false,
+              "tags": [
+                "sanity"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 13700,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByPlaceholder(/Search projects.../i)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByPlaceholder(/Search projects.../i)\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByPlaceholder(/Search projects.../i)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByPlaceholder(/Search projects.../i)\u001b[22m\n\n    at searchProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:99:23)\n    at selectProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:106:9)\n    at D:\\Sanity\\fresh-react-node-project\\tests\\sanity.spec.mjs:38:11",
+                        "location": {
+                          "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                          "column": 23,
+                          "line": 99
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39mPages\\dashboardPage.js:99\n\n\u001b[0m \u001b[90m  97 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m searchProject(page\u001b[33m,\u001b[39m projectName) {\n \u001b[90m  98 |\u001b[39m   \u001b[36mconst\u001b[39m input \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mgetByPlaceholder(\u001b[35m/Search projects.../i\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  99 |\u001b[39m   \u001b[36mawait\u001b[39m expect(input)\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 100 |\u001b[39m   \u001b[36mawait\u001b[39m input\u001b[33m.\u001b[39mfill(projectName)\u001b[33m;\u001b[39m\n \u001b[90m 101 |\u001b[39m   \u001b[36mconst\u001b[39m result \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m`text=\"${projectName}\"`\u001b[39m)\u001b[33m.\u001b[39mfirst()\u001b[33m;\u001b[39m\n \u001b[90m 102 |\u001b[39m   \u001b[90m//await expect(result).toBeVisible({ timeout: 10000 });\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                            "column": 23,
+                            "line": 99
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByPlaceholder(/Search projects.../i)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 10000ms\u001b[22m\n\u001b[2m  - waiting for getByPlaceholder(/Search projects.../i)\u001b[22m\n\n\n   at Pages\\dashboardPage.js:99\n\n   97 | export async function searchProject(page, projectName) {\n   98 |   const input = page.getByPlaceholder(/Search projects.../i);\n>  99 |   await expect(input).toBeVisible({ timeout: 10000 });\n      |                       ^\n  100 |   await input.fill(projectName);\n  101 |   const result = page.locator(`text=\"${projectName}\"`).first();\n  102 |   //await expect(result).toBeVisible({ timeout: 10000 });\n    at searchProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:99:23)\n    at selectProject (D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js:106:9)\n    at D:\\Sanity\\fresh-react-node-project\\tests\\sanity.spec.mjs:38:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-05T08:54:28.268Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Sanity\\fresh-react-node-project\\test-results\\tests-sanity-Sanity-Suite-sanity-Open-AllCards-in-dashboard-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Sanity\\fresh-react-node-project\\test-results\\tests-sanity-Sanity-Suite-sanity-Open-AllCards-in-dashboard-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Sanity\\fresh-react-node-project\\Pages\\dashboardPage.js",
+                        "column": 23,
+                        "line": 99
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "4a06a94aecf59d5320f1-549dd4b5f24784390267",
+              "file": "tests/sanity.spec.mjs",
+              "line": 35,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-01-05T08:53:41.929Z",
+    "duration": 60850.051,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}
