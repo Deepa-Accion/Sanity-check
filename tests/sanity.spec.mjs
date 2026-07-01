@@ -100,6 +100,10 @@ test.describe("Sanity Suite", () => {
   test("@sanity Select first project displayed", withErrorCapture(async ({ page }) => {
     await selectFirstListedProject(page);
   }));
+  
+  test("@sanity PRValidator test", withErrorCapture(async ({ page }) => {
+    await selectFirstListedProject(page);
+  }));
 
   test("@sanity Open AllCards in dashboard", async ({ page }) => {
     const returnedProjectId = await ensureProjectOpen(page);
