@@ -1,0 +1,699 @@
+=== LLM CALL #37 ===
+Model: us.anthropic.claude-haiku-4-5-20251001-v1:0
+Max tokens: 8192
+System prompt tokens (est): ~634
+User prompt tokens (est): ~4493
+
+============================================================
+SYSTEM PROMPT:
+============================================================
+You are a Functional Flow Structuring Agent.
+Output ONLY a valid JSON array. No explanations.
+
+---
+
+## STEP RULES
+- Steps are sequential stages within a Scenario
+- Each Step is a distinct phase (not a repeat of the scenario name)
+- Step name = short verb phrase describing the stage
+- A Scenario typically has 3-8 Steps (max 10)
+- Steps are ORDERED — they represent a sequence
+
+---
+
+## ACTION RULES (PERSONA-AWARE)
+
+### HUMAN PERSONA actions (User, Admin, or any named role)
+- Actions describe what the user PROVIDES, DECIDES, or OBSERVES
+- Actions MUST be platform-agnostic — must work for web, mobile, CLI, or voice
+- FORBIDDEN words: click, tap, swipe, hover, scroll, drag, drop, toggle,
+  button, dropdown, modal, dialog, popup, panel, checkbox, radio, slider,
+  tooltip, menu, sidebar, navbar, tab, icon
+- USE intent verbs: Provide, Choose, Confirm, Review, Dismiss, Open, Close,
+  Submit, Cancel, Specify, Indicate, Acknowledge, Request
+- description = null, unless context specifies a constraint
+  (e.g., "Minimum 20 characters", "Blocked until all files uploaded")
+
+### SYSTEM PERSONA actions
+- Actions describe single atomic internal operations
+- description is REQUIRED on every System action. Provide one of:
+  - Formula or calculation
+  - Threshold or limit
+  - Field names involved
+  - Condition or branching logic
+  - Error message
+  - Data format or transformation
+  - Input/output shape of the operation
+- When context lacks a specific value, describe the operation's
+  input → output contract instead of setting null
+- null is acceptable ONLY for trivial glue actions (e.g., "Log completion")
+
+### EXTERNAL SYSTEM PERSONA actions
+- Actions describe single atomic API/integration operations
+- description = endpoint, payload shape, or auth mechanism when known; otherwise null
+
+### Quantity guidelines
+- A Step typically has 1-5 Actions
+- If more than 5, consider splitting the parent Step
+
+---
+
+## CONTEXT HANDLING
+
+**Source code:** Translate code to functional language — never reproduce raw code.
+Map: conditionals → business rules, queries → data operations,
+calculations → formulas. Action descriptions must include actual field names,
+thresholds, and error messages extracted from code.
+
+**When context lists enumerable items** (columns, filters, file types, strategies),
+include EVERY item as a separate action. Never summarize with "e.g." or "such as".
+
+---
+
+## OUTPUT FORMAT
+[{"scenario": "<title>", "steps": [{"step": "<purpose>", "actions": [{"action": "<interaction>", "description": "<detail or null>"}]}]}]
+
+
+============================================================
+USER PROMPT:
+============================================================
+Generate steps and actions for EACH scenario.
+
+Scenarios:
+[
+  {
+    "persona": "User",
+    "scenario": "Stop recording and prepare captured data",
+    "description": "User stops the recording session, which finalizes data collection and prepares captured interactions for download"
+  },
+  {
+    "persona": "User",
+    "scenario": "Download captured interaction data",
+    "description": "User downloads the captured web interactions as a ZIP file containing screenshots, interaction logs, and network data"
+  }
+]
+
+Relevant code (full detail):
+============================================================
+FILE: popup.js
+Repository: Chrome Extension | LOC: 483
+
+
+- setMsg([, {, ", n, a, m, e, ", :, ", t, e, x, t, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", o, k, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 43-46
+
+- crc32([, {, ", n, a, m, e, ", :, ", b, u, f, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 137-141
+  [140] return (crc ^ (-1)) >>> 0;
+  [138] let crc = 0 ^ (-1);
+
+- onStart([, ]) | Lines: 72-83
+  Calls: setMsg, sendMessage, setMsg, setButtonsState, setMsg, setButtonsState
+
+- prepareFiles([, {, ", n, a, m, e, ", :, ", c, a, p, t, u, r, e, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", f, o, l, d, e, r, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", f, i, l, t, e, r, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 330-412
+  Calls: has, add, match, has, add, getNowStamp, padStart, String, dataUrlToImage, createElement
+  [352] const files = [];
+  [331] const usedNames = new Set();
+  [349] return c;
+  [402] return false;
+  [401] return isXhrOrFetch && !isSvg;
+  [353] const base = folder ? folder : `session-${getNowStamp()}`;
+  [411] return files;
+  [335] return path;
+
+- canvasToUint8Array([, {, ", n, a, m, e, ", :, ", c, a, n, v, a, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 255-262
+  Calls: toBlob, arrayBuffer, resolve
+  [256] return new Promise((resolve)=>{ 
+    canvas.toBlob(async (blob)=>{ 
+      const buf = new Uint8Array(await blob.arrayBuffer()); 
+      resolve(buf); 
+    }, 'image/jpeg', 0.8); 
+  });
+
+- makeZip([, {, ", n, a, m, e, ", :, ", f, i, l, e, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 172-244
+  Calls: dosDateTime, forEach, encode, crc32, writeUInt32LE, writeUInt16LE, writeUInt16LE, writeUInt16LE, writeUInt16LE, writeUInt16LE
+  [173] const chunks = [];
+  [226] const end = new Uint8Array(22);
+  [237] const zipBuf = new Uint8Array(offset);
+  [174] const centralRecords = [];
+  [238] let p = 0;
+  [243] return new Blob([zipBuf], { type:'application/zip' });
+  [175] let offset = 0;
+  [225] const centralSize = offset - centralStart;
+  [220] const centralStart = offset;
+  [176] const {time,date} = dosDateTime();
+
+- applyNetworkFilter([, ]) | Lines: 85-95
+  Calls: trim, set, sendMessage, setMsg, setMsg
+  [86] const v = (networkFilterEl.value||'').trim();
+
+- computeMarkerXY([, {, ", n, a, m, e, ", :, ", i, m, a, g, e, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", e, v, e, n, t, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 4-27
+  Calls: round, round
+  [25] return {x, y};
+  [26] return {x:0, y:0};
+
+- refreshStatus([, ]) | Lines: 62-70
+  Calls: sendMessage, setButtonsState, resolve
+  [63] return new Promise((resolve)=>{ 
+    chrome.runtime.sendMessage({type:'get-status'},(res)=>{ 
+      const status = res?.status || 'idle'; 
+      setButtonsState(status); 
+      resolve(status); 
+    }
+
+- buildDetailedNetworksJson([, {, ", n, a, m, e, ", :, ", n, e, t, w, o, r, k, E, v, e, n, t, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", f, i, l, t, e, r, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 286-328
+  Calls: startsWith, String, substring, String, String, warn, test, includes, has, add
+  [288] const detailedLogs = [];
+  [326] const jsonText = JSON.stringify(detailedLogs, null, 2);
+  [292] let substr = null;
+  [287] const seenUrls = new Set();
+  [290] let useRegex = false;
+  [291] let re = null;
+  [327] return new TextEncoder().encode(jsonText);
+
+- onStop([, ]) | Lines: 119-128
+  Calls: sendMessage, setMsg, setButtonsState, setMsg
+
+- writeUInt16LE([, {, ", n, a, m, e, ", :, ", b, u, f, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", o, f, f, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", v, a, l, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 161-164
+
+- safeFolder([, {, ", n, a, m, e, ", :, ", n, a, m, e, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 280-284
+  Calls: trim, substring, replace, replace
+  [283] return n.replace(/[<>:"|?*]/g,'').replace(/\s+/g,' ').substring(0,80);
+  [281] const n = (name||'').trim();
+  [282] return null;
+
+- setButtonsState([, {, ", n, a, m, e, ", :, ", s, t, a, t, u, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 48-54
+
+- onPause([, ]) | Lines: 97-106
+  Calls: sendMessage, setMsg, setButtonsState, setMsg
+
+- onDownload([, ]) | Lines: 414-466
+  Calls: setMsg, get, setMsg, safeFolder, getNowStamp, trim, prepareFiles, get, map, toISOString
+  [423] return;
+  [438] return `[${time}] ${l.level.toUpperCase()}${url} - ${l.text}`;
+  [415] return;
+  [452] return;
+
+- onResume([, ]) | Lines: 108-117
+  Calls: sendMessage, setMsg, setButtonsState, setMsg
+
+- ensureUniqueName([, {, ", n, a, m, e, ", :, ", p, a, t, h, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 332-350
+  Calls: has, add, match, has, add
+  [349] return c;
+  [343] let c;
+  [338] const m=path.match(/^(.*?)(\.[^./]+)$/);
+  [335] return path;
+  [337] let n=1, b=path, ext='';
+
+- onClear([, ]) | Lines: 130-134
+  Calls: set, setMsg
+
+- drawMarker([, {, ", n, a, m, e, ", :, ", c, t, x, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", x, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", y, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", i, n, d, e, x, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 264-278
+  Calls: beginPath, arc, fill, stroke, fillText, String
+  [265] const r = 12;
+
+- getNowStamp([, ]) | Lines: 56-60
+  Calls: padStart, String, getFullYear, pad, getMonth, pad, getDate, pad, getHours, pad
+  [57] const d = new Date();
+  [58] const pad = (n) => String(n).padStart(2,'0');
+  [59] return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+
+- writeUInt32LE([, {, ", n, a, m, e, ", :, ", b, u, f, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", o, f, f, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", v, a, l, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 154-159
+
+- dataUrlToImage([, {, ", n, a, m, e, ", :, ", d, a, t, a, U, r, l, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 246-253
+  Calls: resolve
+  [247] return new Promise((resolve,reject)=>{ 
+    const img = new Image(); 
+    img.onload = () => resolve(img); 
+    img.onerror = reject; 
+    img.src = dataUrl; 
+  });
+
+- pad([, {, ", n, a, m, e, ", :, ", n, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 58-58
+  Calls: padStart, String
+
+- dosDateTime([, {, ", n, a, m, e, ", :, ", d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 166-170
+  Calls: getHours, getMinutes, floor, getSeconds, getFullYear, getMonth, getDate
+  [169] return { time, date };
+  [168] const date = (((d.getFullYear()-1980) & 0x7F) << 9) | (((d.getMonth()+1) & 0xF) << 5) | (d.getDate() & 0x1F);
+  [167] const time = ((d.getHours() & 0x1F) << 11) | ((d.getMinutes() & 0x3F) << 5) | ((Math.floor(d.getSeconds()/2)) & 0x1F);
+[lexical_declaration] (38) const statusEl = document.getElementById('statusText');
+[lexical_declaration] (1) let isDownloading = false;
+[lexical_declaration] (39) const sessionNameEl = document.getElementById('sessionName');
+[lexical_declaration] (34) const stopBtn = document.getElementById('stopBtn');
+[lexical_declaration] (33) const resumeBtn = document.getElementById('resumeBtn');
+[lexical_declaration] (32) const pauseBtn = document.getElementById('pauseBtn');
+[lexical_declaration] (40) const networkFilterEl = document.getElementById('networkFilter');
+[lexical_declaration] (37) const msgEl = document.getElementById('msg');
+[lexical_declaration] (143) const table = (()=>{ 
+  let c; 
+  const t = new Array(256); 
+  for(let n=0; n<256; n++){ 
+    c = n; 
+    for(let k=0; k<8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); 
+    t[n] = c >>> 0
+[lexical_declaration] (36) const clearBtn = document.getElementById('clearBtn');
+[lexical_declaration] (41) const applyFilterBtn = document.getElementById('applyFilterBtn');
+[lexical_declaration] (30) const STORAGE_KEY = 'captures';
+[lexical_declaration] (35) const downloadBtn = document.getElementById('downloadBtn');
+[lexical_declaration] (31) const startBtn = document.getElementById('startBtn');
+
+============================================================
+FILE: background.js
+Repository: Chrome Extension | LOC: 810
+
+
+- getTabInfo([, {, ", n, a, m, e, ", :, ", i, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 193-199
+  Calls: get, resolve, resolve
+
+- tryAttach([, {, ", n, a, m, e, ", :, ", a, t, t, e, m, p, t, N, u, m, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 416-448
+  Calls: attach, warn, setTimeout, tryAttach, pow, reject, addListener, catch, then, all
+  [424] return reject(new Error(chrome.runtime.lastError.message));
+  [422] return;
+
+- normalizeTimeStamp([, {, ", n, a, m, e, ", :, ", t, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 313-318
+  [317] return ts;
+  [314] return null;
+  [316] return ts * 1000;
+
+- hashAction([, {, ", n, a, m, e, ", :, ", p, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 640-653
+  Calls: round, round, slice, String, join, String, random
+  [651] return String(Math.random());
+  [649] return [p?.url || '', x, y, tag, id, cls].join('|');
+
+- startRecording([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 133-247
+  Calls: attachDebugger, warn, executeScript, forEach, bind, map, call, stringify, String, postMessage
+  [152] return;
+  [186] return evs;
+  [241] const { tabStates = {} } = await getSessionState();
+  [161] return ''
+  [160] return JSON.stringify(a);
+  [187] return [];
+  [246] return {ok:true};
+
+- stopRecording([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 249-262
+  Calls: getSessionState, setSessionState, setBadge, catch, sendMessage, detachDebugger, clear
+  [250] const { tabStates = {} } = await getSessionState();
+
+- detachDebugger([, ]) | Lines: 454-482
+  Calls: resolve, clear, resolve, removeListener, sendCommand, detach, resolve, resolve
+  [455] return new Promise((resolve) => {
+    if (debuggerTargetTabId == null) {
+      debuggerAttached = false;
+      return resolve();
+    }
+
+    const target = { tabId: debuggerTargetTabId };
+    
+    // C
+
+- startNetworkWindow([, {, ", n, a, m, e, ", :, ", i, n, d, e, x, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", d, u, r, a, t, i, o, n, M, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 306-310
+  Calls: now, set
+  [308] const now = Date.now() - 100;
+
+- setNetworkFilter([, {, ", n, a, m, e, ", :, ", f, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 29-36
+  Calls: trim, String
+
+- attachDebugger([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 394-452
+  Calls: reject, detach, warn, clear, clear, attach, warn, setTimeout, tryAttach, pow
+  [395] return new Promise((resolve, reject) => {
+    if (!chrome.debugger) return reject(new Error('chrome.debugger unavailable'));
+
+    // First detach if already attached somewhere
+    try {
+      if (debu
+
+- getSessionState([, ]) | Lines: 17-17
+  Calls: get
+
+- handleUserAction([, {, ", n, a, m, e, ", :, ", k, i, n, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", p, a, y, l, o, a, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", s, e, n, d, e, r, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 655-722
+  Calls: clear, getSessionState, toLowerCase, trim, String, toLowerCase, trim, String, now, hashAction
+  [694] const meta = { 
+    idx: newActionIndex, 
+    kind, 
+    ts: payload.ts, 
+    x: payload.x, 
+    y: payload.y, 
+    dpr: payload.dpr, 
+    vw: payload.vw, 
+    vh: payload.vh, 
+    url: sender.tab?.ur
+  [672] return;
+  [682] return;
+  [658] const tabId = sender.tab?.id;
+  [663] const s = tabStates[tabId];
+  [664] return;
+  [659] const windowId = sender.tab?.windowId;
+  [712] return;
+  [690] const newActionIndex = actionIndex + 1;
+  [662] const { tabStates = {}, actionIndex = 0 } = await getSessionState();
+  [660] return;
+
+- maybeRecordNetwork([, {, ", n, a, m, e, ", :, ", d, e, t, a, i, l, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", p, h, a, s, e, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 329-392
+  Calls: includes, toLowerCase, endsWith, toLowerCase, getSessionState, log, log, decode, stringify, stringify
+  [341] return;
+  [334] return;
+
+- resetStorage([, ]) | Lines: 38-42
+  Calls: set, setSessionState, clear
+
+- requestConsent([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 108-131
+  Calls: injectContentScript, catch, sendMessage, removeListener, resolve, addListener, setTimeout, removeListener, resolve
+  [115] return new Promise((resolve)=>{
+    const listener = (msg, sender) => { 
+      if (sender.tab?.id !== tabId) return; 
+      if (msg?.type === 'consent-response') { 
+        chrome.runtime.onMessage.re
+
+- setBadge([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", s, t, a, t, u, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 95-106
+  Calls: setBadgeText, setBadgeBackgroundColor
+  [96] let text='', color='#777';
+
+- pauseRecording([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 264-273
+  Calls: getSessionState, setSessionState, setBadge, catch, sendMessage
+  [266] const s = tabStates[tabId] || {status:'idle'};
+  [265] const { tabStates = {} } = await getSessionState();
+
+- appendNetworkEvent([, {, ", n, a, m, e, ", :, ", i, n, d, e, x, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", e, v, e, n, t, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 64-86
+  Calls: get, findIndex, hasOwnProperty, hasOwnProperty, hasOwnProperty, find, assign, push, push, error
+  [65] return new Promise((resolve)=>{
+    chrome.storage.local.get([STORAGE_KEY], (res)=>{
+      const capturesList = res[STORAGE_KEY] || [];
+      try {
+        const i = capturesList.findIndex(x => x.inde
+
+- injectContentScript([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 88-93
+  Calls: executeScript
+  [89] return chrome.scripting.executeScript({ 
+    target: { tabId, allFrames: true }, 
+    files: ['content.js'] 
+  });
+
+- appendConsoleLog([, {, ", n, a, m, e, ", :, ", l, o, g, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 54-62
+  Calls: get, push, set
+  [55] return new Promise((resolve)=>{ 
+    chrome.storage.local.get([CONSOLE_KEY], (res)=>{ 
+      const list = res[CONSOLE_KEY] || []; 
+      list.push(log); 
+      chrome.storage.local.set({ [CONSOLE_KEY]
+
+- withinWindow([, {, ", n, a, m, e, ", :, ", t, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 320-327
+  Calls: normalizeTimeStamp
+  [322] return null;
+  [324] return idx;
+  [321] const n = normalizeTimeStamp(ts);
+  [326] return null;
+
+- resumeRecording([, {, ", n, a, m, e, ", :, ", t, a, b, I, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 275-284
+  Calls: getSessionState, setSessionState, setBadge, catch, sendMessage
+  [277] const s = tabStates[tabId] || {status:'idle'};
+  [276] const { tabStates = {} } = await getSessionState();
+
+- onDebuggerEvent([, {, ", n, a, m, e, ", :, ", s, o, u, r, c, e, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", m, e, t, h, o, d, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", p, a, r, a, m, s, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 484-631
+  Calls: now, set, has, set, now, withinWindow, get, sendCommand, warn, set
+  [557] return;
+  [486] return;
+
+- listener([, {, ", n, a, m, e, ", :, ", m, s, g, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ,, {, ", n, a, m, e, ", :, ", s, e, n, d, e, r, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 116-122
+  Calls: removeListener, resolve
+  [117] return;
+
+- setSessionState([, {, ", n, a, m, e, ", :, ", s, t, a, t, e, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 18-18
+  Calls: set
+
+- pushCapture([, {, ", n, a, m, e, ", :, ", c, a, p, t, u, r, e, ", ,, ", t, y, p, e, ", :, n, u, l, l, }, ]) | Lines: 44-52
+  Calls: get, push, set
+  [45] return new Promise((resolve)=>{ 
+    chrome.storage.local.get([STORAGE_KEY], (res)=>{ 
+      const list = res[STORAGE_KEY] || []; 
+      list.push(capture); 
+      chrome.storage.local.set({ [STORAGE_
+[lexical_declaration] (7) const recentClicks = new Map();
+[lexical_declaration] (3) const STORAGE_KEY = 'captures';
+[lexical_declaration] (11) const pendingRequests = new Map();
+[lexical_declaration] (10) let debuggerTargetTabId = null;
+[lexical_declaration] (4) const CONSOLE_KEY = 'consoleLogs';
+[lexical_declaration] (13) let currentNetworkFilter = null;
+[lexical_declaration] (12) let recordedAPIs = new Map();
+[lexical_declaration] (8) const windows = new Map();
+[lexical_declaration] (18) const setSessionState = (state) => chrome.storage.session.set(state);
+[lexical_declaration] (9) let debuggerAttached = false;
+[lexical_declaration] (17) const getSessionState = async () => (await chrome.storage.session.get(['recordingTabId', 'actionIndex', 'tabStates'])) || {};
+
+
+============================================================
+RESPONSE:
+============================================================
+```json
+[
+  {
+    "scenario": "Stop recording and prepare captured data",
+    "steps": [
+      {
+        "step": "Initiate stop request",
+        "actions": [
+          {
+            "action": "Request",
+            "description": "User confirms intent to stop the active recording session"
+          }
+        ]
+      },
+      {
+        "step": "Finalize recording state",
+        "actions": [
+          {
+            "action": "Send stop message to background service",
+            "description": "Message type: 'stop'; triggers stopRecording(tabId) in background.js"
+          },
+          {
+            "action": "Retrieve current session state",
+            "description": "Fetch tabStates from chrome.storage.session; keys: recordingTabId, actionIndex, tabStates"
+          },
+          {
+            "action": "Update tab recording status",
+            "description": "Set tabStates[tabId].status = 'stopped'; persist to chrome.storage.session"
+          }
+        ]
+      },
+      {
+        "step": "Detach debugger and clean up",
+        "actions": [
+          {
+            "action": "Detach debugger from tab",
+            "description": "Call chrome.debugger.detach({tabId: debuggerTargetTabId}); clear debuggerAttached flag; remove onDebuggerEvent listener"
+          },
+          {
+            "action": "Clear pending network requests",
+            "description": "Empty pendingRequests Map; clear recordedAPIs Map"
+          },
+          {
+            "action": "Update extension badge",
+            "description": "Call setBadge(tabId, 'stopped'); sets badge text to empty string and color to '#777'"
+          }
+        ]
+      },
+      {
+        "step": "Confirm stop completion",
+        "actions": [
+          {
+            "action": "Display status confirmation",
+            "description": "Update UI message: 'Recording stopped'; set button states to reflect stopped state (start enabled, stop/pause/resume disabled)"
+          },
+          {
+            "action": "Send confirmation message to popup",
+            "description": "Message type: 'stopped'; triggers UI refresh in popup.js onStop()"
+          }
+        ]
+      },
+      {
+        "step": "Prepare captured data for export",
+        "actions": [
+          {
+            "action": "Retrieve all capture objects",
+            "description": "Fetch from chrome.storage.local[STORAGE_KEY] ('captures'); retrieve action, screenshot, and annotation data"
+          },
+          {
+            "action": "Retrieve network event logs",
+            "description": "Fetch from chrome.storage.local indexed by capture index; each capture contains networkEvents array"
+          },
+          {
+            "action": "Retrieve console logs",
+            "description": "Fetch from chrome.storage.local[CONSOLE_KEY] ('consoleLogs'); filter by session timestamp window"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "scenario": "Download captured interaction data",
+    "steps": [
+      {
+        "step": "Validate download preconditions",
+        "actions": [
+          {
+            "action": "Check download in progress flag",
+            "description": "Verify isDownloading === false; prevent concurrent downloads"
+          },
+          {
+            "action": "Verify captures exist",
+            "description": "Retrieve chrome.storage.local[STORAGE_KEY]; confirm length > 0"
+          },
+          {
+            "action": "Request",
+            "description": "User confirms intent to download captured session data"
+          }
+        ]
+      },
+      {
+        "step": "Collect and filter data",
+        "actions": [
+          {
+            "action": "Retrieve session metadata",
+            "description": "Read sessionName (or generate default: session-YYYYMMDD-HHMMSS); fetch from chrome.storage.local"
+          },
+          {
+            "action": "Sanitize session folder name",
+            "description": "Apply safeFolder(): trim whitespace, remove chars matching [<>:\"|?*], replace multiple spaces with single space, cap at 80 chars"
+          },
+          {
+            "action": "Retrieve network filter setting",
+            "description": "Read currentNetworkFilter from chrome.storage.local; used to filter network events during export"
+          },
+          {
+            "action": "Retrieve all captures",
+            "description": "Fetch chrome.storage.local[STORAGE_KEY]; array of capture objects with screenshots, annotations, metadata"
+          },
+          {
+            "action": "Retrieve console logs",
+            "description": "Fetch chrome.storage.local[CONSOLE_KEY]; format: [{level, text, timestamp}]"
+          }
+        ]
+      },
+      {
+        "step": "Process screenshots and images",
+        "actions": [
+          {
+            "action": "Convert screenshot data URLs to images",
+            "description": "For each capture.screenshot (data URL format): call dataUrlToImage(), load Image object, onload resolve"
+          },
+          {
+            "action": "Convert images to JPEG uint8 arrays",
+            "description": "For each loaded Image: call canvasToUint8Array(canvas); canvas.toBlob() with JPEG format, quality 0.8; return Uint8Array"
+          },
+          {
+            "action": "Generate image filenames",
+            "description": "Name format: screenshot-{index}.jpg; ensure unique names via ensureUniqueName(); track in usedNames Set"
+          }
+        ]
+      },
+      {
+        "step": "Build JSON logs",
+        "actions": [
+          {
+            "action": "Build detailed network JSON",
+            "description": "Call buildDetailedNetworksJson(networkEvents, filter); filter by: URL regex/literal match, exclude SVG resources, include only XHR/Fetch; output JSON string with fields: method, url, status, initiator, responseTime, requestBody, responseBody"
+          },
+          {
+            "action": "Build console logs text",
+            "description": "For each log in chrome.storage.local[CONSOLE_KEY]: format as '[timestamp] LEVEL [url] - text'; map to array and encode to UTF-8"
+          },
+          {
+            "action": "Build interactions JSON",
+            "description": "Retrieve all actions from captures; include fields: idx, kind, ts, x, y, dpr, vw, vh, url, target selector, text; convert to JSON string with 2-space indent"
+          }
+        ]
+      },
+      {
+        "step": "Assemble file collection",
+        "actions": [
+          {
+            "action": "Prepare files array",
+            "description": "Call prepareFiles(captures, folderName, networkFilter); returns array of {path, data} objects for all screenshots, JSON logs, and text files"
+          },
+          {
+            "action": "Include screenshot files",
+            "description": "Add all screenshot-{index}.jpg files; path format: session-{folderName}/screenshots/screenshot-{index}.jpg"
+          },
+          {
+            "action": "Include network log file",
+            "description": "Add networks.json; path format: session-{folderName}/networks.json; contents: encoded detailed network JSON"
+          },
+          {
+            "action": "Include interactions log file",
+            "description": "Add interactions.json; path format: session-{folderName}/interactions.json; contents: encoded actions JSON with index, kind, timestamp, coordinates, URL, selectors"
+          },
+          {
+            "action": "Include console log file",
+            "description": "Add console.txt; path format: session-{folderName}/console.txt; contents: formatted console logs with timestamps"
+          }
+        ]
+      },
+      {
+        "step": "Create ZIP archive",
+        "actions": [
+          {
+            "action": "Generate DOS timestamp",
+            "description": "Call dosDateTime(); compute time=(hour<<11 | minute<<5 | floor(second/2)), date=((year-1980)<<9 | month<<5 | day)"
+          },
+          {
+            "action": "Build local file headers",
+            "description": "For each file in collection: write signature 0x04034b50, version 20, flags 0, compression 0, DOS timestamps, CRC-32, filename, data"
+          },
+          {
+            "action": "Calculate CRC-32 checksums",
+            "description": "For each file data: call crc32(buffer); table-driven algorithm with polynomial 0xEDB88320; return (crc ^ -1) >>> 0"
+          },
+          {
+            "action": "Build central directory",
+            "description": "For each file: write central header signature 0x02014b50, version 20, method 0, timestamps, CRC, compressed/uncompressed sizes, filename"
+          },
+          {
+            "action": "Write end of central directory",
+            "description": "Write signature 0x06054b50, disk numbers (0), entry counts, central directory size and offset, comment length (0)"
+          },
+          {
+            "action": "Combine ZIP segments",
+            "description": "Concatenate all local headers, file data, central directory, and end record into single Uint8Array"
+          }
+        ]
+      },
+      {
+        "step": "Generate and trigger download",
+        "actions": [
+          {
+            "action": "Create Blob from ZIP buffer",
+            "description": "Construct Blob([zipUint8Array], {type: 'application/zip'})"
+          },
+          {
+            "action": "Generate download filename",
+            "description": "Format: session-{folderName}.zip; call getNowStamp() for fallback name: session-YYYYMMDD-HHMMSS.zip"
+          },
+          {
+            "action": "Create download URL",
+            "description": "Call URL.createObjectURL(blob); generate data URI for ZIP file"
+          },
+          {
+            "action": "Trigger browser download",
+            "description": "Create <a> element with href=objectURL, download=filename; call click(); revoke URL after download"
+          },
+          {
+            "action": "Set download in progress flag",
+            "description": "Set isDownloading = true during download; reset to false after completion or error"
+          }
+        ]
+      },
+      {
+        "step": "Provide download feedback",
+        "actions": [
+          {
+            "action": "Display success message",
+            "description": "Update UI: 'Download complete: session-{folderName}.zip ({fileSize} bytes)'"
+          },
+          {
+            "action": "Acknowledge",
+            "description": "User reviews download confirmation and file details"
+          }
+        ]
+      }
+    ]
+  }
+]
+```

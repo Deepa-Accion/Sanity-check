@@ -1,0 +1,36 @@
+{
+  "persona_clusters": {
+    "System": {
+      "-1": [
+        "System: Buffer and replay user interaction events",
+        "System: Convert canvas and image data to processable formats",
+        "System: Encode file data for ZIP compression and storage",
+        "System: Handle and log browser tab events and debugging information",
+        "System: Inject and execute content scripts in browser tabs",
+        "System: Manage Chrome debugger attachment and detachment for tab monitoring",
+        "System: Manage browser extension badge and visual indicators",
+        "System: Manage browser extension overlay and consent display"
+      ]
+    },
+    "User": {
+      "-1": [
+        "User: Access web pages and modify browser functionality through extension integration",
+        "User: Capture and process network-related web page interactions",
+        "User: Capture and report global mouse and element coordinates",
+        "User: Configure network request capture and filtering",
+        "User: Control recording state with pause, resume, and stop actions",
+        "User: Control web page capture and download workflow states",
+        "User: Download and organize web page files and resources",
+        "User: Draw visual markers and annotations on captured content",
+        "User: Execute background script services for extension core functionality",
+        "User: Generate detailed element identification metadata",
+        "User: Generate timestamps and unique file names for downloads",
+        "User: Install and configure browser extension with defined permissions and behaviors",
+        "User: Request user consent for browser tab recording",
+        "User: Track and capture user interactions with web page elements",
+        "User: Track and manage browser tab recording sessions",
+        "User: Visualize browser network events and console logs"
+      ]
+    }
+  }
+}

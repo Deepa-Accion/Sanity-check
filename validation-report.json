@@ -1,0 +1,392 @@
+{
+  "timestamp": "2026-04-10T09:47:01.495034+00:00",
+  "summary": {
+    "personas": 2,
+    "outcomes": 10,
+    "scenarios": 64,
+    "steps": 349,
+    "actions": 917
+  },
+  "checks": {
+    "empty_nodes": {
+      "severity": "P0",
+      "count": 0,
+      "items": []
+    },
+    "duplicate_scenarios": {
+      "severity": "P1",
+      "count": 1,
+      "items": [
+        {
+          "scenario": "Pause and Resume Recording Session",
+          "count": 2,
+          "locations": [
+            {
+              "persona": "System",
+              "outcome": "Browser Monitoring"
+            },
+            {
+              "persona": "User",
+              "outcome": "Browser Extension Management"
+            }
+          ]
+        }
+      ]
+    },
+    "duplicate_outcomes": {
+      "count": 0,
+      "items": []
+    },
+    "citation_coverage": {
+      "severity": "P1",
+      "total_nodes": 74,
+      "cited": 0,
+      "percentage": 0.0,
+      "uncited_items": [
+        {
+          "type": "outcome",
+          "persona": "System",
+          "name": "Browser Monitoring"
+        },
+        {
+          "type": "outcome",
+          "persona": "System",
+          "name": "Data Processing"
+        },
+        {
+          "type": "outcome",
+          "persona": "System",
+          "name": "Browser Extension Runtime"
+        },
+        {
+          "type": "outcome",
+          "persona": "System",
+          "name": "Event Management"
+        },
+        {
+          "type": "outcome",
+          "persona": "System",
+          "name": "Browser Extension UI"
+        },
+        {
+          "type": "outcome",
+          "persona": "User",
+          "name": "Web Content Capture"
+        },
+        {
+          "type": "outcome",
+          "persona": "User",
+          "name": "Content Analysis and Visualization"
+        },
+        {
+          "type": "outcome",
+          "persona": "User",
+          "name": "Web Page Recording"
+        },
+        {
+          "type": "outcome",
+          "persona": "User",
+          "name": "File Management"
+        },
+        {
+          "type": "outcome",
+          "persona": "User",
+          "name": "Browser Extension Management"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Start Browser Tab Recording Session"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Stop Browser Tab Recording Session"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Manage Debugger Attachment and Detachment"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Capture and Filter Network Activity"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Process User Actions and Console Logs"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Handle Chrome Debugger Events"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Request User Consent for Monitoring"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Pause and Resume Recording Session"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Filter and structure network event data"
+        },
+        {
+          "type": "scenario",
+          "persona": "System",
+          "name": "Generate ZIP archive with CRC32 validation"
+        }
+      ],
+      "uncited_total": 74
+    },
+    "description_coverage": {
+      "severity": "P1",
+      "scenarios": {
+        "total": 64,
+        "with_description": 64,
+        "percentage": 100.0
+      },
+      "system_actions": {
+        "total": 509,
+        "with_description": 507,
+        "percentage": 99.6,
+        "missing_samples": [
+          {
+            "persona": "System",
+            "scenario": "Process Recording State Changes",
+            "action": "Log debugger attachment"
+          },
+          {
+            "persona": "System",
+            "scenario": "Capture Network Activity Events",
+            "action": "Log captured request"
+          }
+        ]
+      },
+      "human_actions": {
+        "total": 408,
+        "with_description": 367,
+        "note": "Human actions don't require descriptions unless there's a constraint"
+      }
+    },
+    "platform_agnostic": {
+      "severity": "P1",
+      "total_human_actions": 408,
+      "violations": 37,
+      "compliance_percentage": 90.9,
+      "items": [
+        {
+          "persona": "User",
+          "scenario": "Interact with web page elements during recording",
+          "action": "Capture click event",
+          "forbidden_words": [
+            "click"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Pause and resume recording session",
+          "action": "Update button states",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Pause and resume recording session",
+          "action": "Update button states",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Stop recording and prepare captured data",
+          "action": "Update tab recording status",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Stop recording and prepare captured data",
+          "action": "Detach debugger from tab",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Stop recording and prepare captured data",
+          "action": "Send confirmation message to popup",
+          "forbidden_words": [
+            "popup"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Clear captured data",
+          "action": "Clear recent clicks map",
+          "forbidden_words": [
+            "click"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Start browser activity recording session",
+          "action": "Attach Chrome debugger to tab",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Start browser activity recording session",
+          "action": "Update button states for active recording",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Start browser activity recording session",
+          "action": "Update button availability based on status",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Clear captured session data",
+          "action": "Clear recent clicks",
+          "forbidden_words": [
+            "click"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Update tab state to stopped",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Update button states for idle state",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Detach debugger from tab",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Update tab state to recording",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Update button states for active recording",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Update button states for paused recording",
+          "forbidden_words": [
+            "button"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Control recording session state",
+          "action": "Update tab state to paused",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Resume paused recording",
+          "action": "Query tab status",
+          "forbidden_words": [
+            "tab"
+          ]
+        },
+        {
+          "persona": "User",
+          "scenario": "Stop recording session",
+          "action": "Query tab status",
+          "forbidden_words": [
+            "tab"
+          ]
+        }
+      ],
+      "total_violations": 37
+    },
+    "persona_quality": {
+      "severity": "P1",
+      "personas": [
+        {
+          "persona": "System",
+          "outcomes": 5,
+          "scenarios": 31,
+          "steps": 183,
+          "actions": 509,
+          "scenario_share": 48.4,
+          "flags": [
+            "BLOATED: holds 48.4% of all scenarios"
+          ]
+        },
+        {
+          "persona": "User",
+          "outcomes": 5,
+          "scenarios": 33,
+          "steps": 166,
+          "actions": 408,
+          "scenario_share": 51.6,
+          "flags": [
+            "BLOATED: holds 51.6% of all scenarios"
+          ]
+        }
+      ],
+      "flagged_count": 2
+    },
+    "cross_persona_overlap": {
+      "severity": "P2",
+      "count": 0,
+      "items": []
+    },
+    "source_coverage": {
+      "severity": "N/A",
+      "note": "No sources file provided. Use --sources <file.json> or let Claude check via Documents MCP."
+    }
+  },
+  "overall": {
+    "p0_issues": 0,
+    "p1_issues": 41,
+    "p2_issues": 0,
+    "health": "NEEDS_ATTENTION"
+  }
+}

@@ -1,0 +1,2 @@
+# Breeze local config — contains secrets, never commit
+.breeze.json

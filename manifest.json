@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "ClickShot Recorder",
+  "version": "1.7.0",
+  "description": "Capture ONLY on real clicks or when typing is committed (focus out). Screenshots (JPEG 80%), green markers, per-action network URLs as JSON, and console logs.",
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "/icons/icon16.png" 
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "downloads",
+    "unlimitedStorage",
+    "webRequest",
+    "debugger"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

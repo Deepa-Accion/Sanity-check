@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ClickShot Recorder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 12px; width: 360px; }
+      h1 { font-size: 16px; margin: 0 0 8px; }
+      .row { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+      button { flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+      button.primary { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+      button.warn { background: #f9ab00; color: #fff; border-color: #f9ab00; }
+      button.danger  { background: #c62828; color: #fff; border-color: #c62828; }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      #msg { margin-top: 8px; font-size: 12px; color: #333; min-height: 18px; }
+      .small { font-size: 11px; color: #666; }
+      .status { font-size: 12px; color: #333; }
+      label { font-size: 12px; color: #333; }
+      input[type="text"] { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>ClickShot Recorder</h1>
+
+    <div class="row">
+      <button id="startBtn" class="primary">Start</button>
+      <button id="pauseBtn" class="warn">Pause</button>
+      <button id="resumeBtn" class="primary">Resume</button>
+      <button id="stopBtn" class="danger">Stop</button>
+    </div>
+
+    <div class="row">
+      <button id="downloadBtn">Download ZIP</button>
+      <button id="clearBtn">Clear</button>
+    </div>
+
+    <div class="row" style="flex-direction:column;">
+      <label for="sessionName">Session name</label>
+      <input id="sessionName" type="text" placeholder="e.g., Checkout Flow – Oct 21" />
+    </div>
+
+    <div class="row" style="flex-direction:column; margin-top:8px;">
+      <label for="networkFilter">Network filter (substring or prefix with <code>re:</code> for regex)
+        <span title="Use the prefix 're:' to enter a JavaScript regex. Example: re:^https://example\\.com\nEscape backslashes when typing.\nPrefix 're:' enables regex mode; otherwise the input is treated as a simple substring." style="margin-left:6px; font-size:12px; color:#666; cursor:help;">ⓘ</span>
+      </label>
+      <div style="display:flex; gap:8px;">
+        <input id="networkFilter" type="text" placeholder="e.g., /api/ or re:^https://example\\.com" style="flex:1;" />
+        <button id="applyFilterBtn">Apply</button>
+      </div>
+      <div class="small">When set, only network calls matching the filter will be attached to captures. Leave empty to capture all.</div>
+    </div>
+    
+
+    <div class="status">Status: <span id="statusText">idle</span></div>
+    <div id="msg"></div>
+    <div class="small">Captures visible area (JPEG 80%) and per-action (click / type-commit on blur) network URLs as JSON.</div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

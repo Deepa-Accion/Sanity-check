@@ -1,0 +1,61 @@
+{
+  "payload": {
+    "personas": [
+      {
+        "persona": "System",
+        "outcomes": [
+          {
+            "outcome": "Event Management",
+            "scenarios": []
+          },
+          {
+            "outcome": "Browser Monitoring",
+            "scenarios": []
+          },
+          {
+            "outcome": "Browser Extension UI",
+            "scenarios": []
+          },
+          {
+            "outcome": "Browser Extension Runtime",
+            "scenarios": []
+          },
+          {
+            "outcome": "Data Processing",
+            "scenarios": []
+          }
+        ]
+      },
+      {
+        "persona": "User",
+        "outcomes": [
+          {
+            "outcome": "Browser Extension Management",
+            "scenarios": []
+          },
+          {
+            "outcome": "Web Page Recording",
+            "scenarios": []
+          },
+          {
+            "outcome": "Web Content Capture",
+            "scenarios": []
+          },
+          {
+            "outcome": "Content Analysis and Visualization",
+            "scenarios": []
+          },
+          {
+            "outcome": "File Management",
+            "scenarios": []
+          }
+        ]
+      }
+    ]
+  },
+  "project": {
+    "uuid": "8a00daee-6ec4-45f9-95da-1446dea5cad2",
+    "name": "projectA"
+  },
+  "skipStepAndAction": true
+}

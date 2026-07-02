@@ -1,0 +1,85 @@
+{
+  "structure": [
+    {
+      "persona": "System",
+      "outcomes": [
+        {
+          "outcome": "Event Management",
+          "intents": [
+            "System: Buffer and replay user interaction events"
+          ]
+        },
+        {
+          "outcome": "Browser Monitoring",
+          "intents": [
+            "System: Handle and log browser tab events and debugging information",
+            "System: Manage Chrome debugger attachment and detachment for tab monitoring"
+          ]
+        },
+        {
+          "outcome": "Browser Extension UI",
+          "intents": [
+            "System: Manage browser extension badge and visual indicators",
+            "System: Manage browser extension overlay and consent display"
+          ]
+        },
+        {
+          "outcome": "Browser Extension Runtime",
+          "intents": [
+            "System: Inject and execute content scripts in browser tabs"
+          ]
+        },
+        {
+          "outcome": "Data Processing",
+          "intents": [
+            "System: Encode file data for ZIP compression and storage",
+            "System: Convert canvas and image data to processable formats"
+          ]
+        }
+      ]
+    },
+    {
+      "persona": "User",
+      "outcomes": [
+        {
+          "outcome": "Browser Extension Management",
+          "intents": [
+            "User: Install and configure browser extension with defined permissions and behaviors",
+            "User: Execute background script services for extension core functionality",
+            "User: Access web pages and modify browser functionality through extension integration"
+          ]
+        },
+        {
+          "outcome": "Web Page Recording",
+          "intents": [
+            "User: Track and manage browser tab recording sessions with user consent",
+            "User: Control recording state with pause, resume, and stop actions",
+            "User: Control web page capture and download workflow states"
+          ]
+        },
+        {
+          "outcome": "Web Content Capture",
+          "intents": [
+            "User: Capture and process network-related web page interactions with filtering",
+            "User: Track and capture user interactions with web page elements",
+            "User: Capture and report global mouse and element coordinates",
+            "User: Generate detailed element identification metadata"
+          ]
+        },
+        {
+          "outcome": "Content Analysis and Visualization",
+          "intents": [
+            "User: Visualize browser network events and console logs",
+            "User: Draw visual markers and annotations on captured content"
+          ]
+        },
+        {
+          "outcome": "File Management",
+          "intents": [
+            "User: Download and organize web page files and resources with unique naming"
+          ]
+        }
+      ]
+    }
+  ]
+}
