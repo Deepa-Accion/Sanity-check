@@ -1,0 +1,460 @@
+{
+  "payload": {
+    "personas": [
+      {
+        "persona": "QA Engineer",
+        "description": null,
+        "outcomes": [
+          {
+            "outcome": "Validate BreezeAI Platform via Automated Sanity and Regression Checks",
+            "description": "Run the automated sanity and regression suites that smoke-test core BreezeAI capabilities across Dev and Prod environments — dashboard availability, project creation, document ingestion with the functional/design/architecture ontologies, metrics generation, theming, project navigation, and design generation.",
+            "scenarios": [
+              {
+                "scenario": "Launch the BreezeAI dashboard (Dev sanity check)",
+                "description": "Sanity smoke check that the BreezeAI Dev environment loads. Navigates to https://ai.accionbreeze.com/ and asserts the page title matches /Breeze.AI/i. Tagged @sanity; maintained for Chromium only; runs in serial mode.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Load the BreezeAI Dev environment",
+                    "actions": [
+                      {
+                        "action": "Open the BreezeAI dashboard",
+                        "description": "Navigates to https://ai.accionbreeze.com/ waiting for domcontentloaded.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the dashboard loaded",
+                        "description": "Asserts the document title matches /Breeze.AI/i, confirming the dashboard rendered.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Create a new BreezeAI project (Dev sanity check)",
+                "description": "Creates a project with a timestamped unique name (SanityCheck-<ISO>-Automation) and confirms a project ID is returned; the run fails if no ID comes back.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Provide project details and create",
+                    "actions": [
+                      {
+                        "action": "Provide a unique project name",
+                        "description": "label: Project name; generated as SanityCheck-<timestamp>-Automation to avoid collisions across runs.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the project is created",
+                        "description": "Submits the create-project form and asserts a non-empty project ID is returned from the resulting URL or project card.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Upload a document and generate functional metrics (Dev sanity check)",
+                "description": "Opens an existing project, uploads a PDF into the Knowledge Base with the Functional ontology, then triggers functional metrics generation (waits up to ~3 minutes for processing). Marked a critical test.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Open the target project",
+                    "actions": [
+                      {
+                        "action": "Open an existing project",
+                        "description": "Ensures a project is created and open before uploading a document.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Provide a document and request metrics",
+                    "actions": [
+                      {
+                        "action": "Provide a PDF document for functional ingestion",
+                        "description": "Uploads documents/fileName.pdf via the Knowledge Base with the Functional Ontology selected, then starts analysis.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "knowlegeBase.js", "reference": "Sanity-check/Pages/knowlegeBase.js" }
+                        ]
+                      },
+                      {
+                        "action": "Request functional metrics generation",
+                        "description": "Triggers functional metrics generation from the Knowledge Base; waits up to ~3 minutes for the metrics to be produced.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "knowlegeBase.js", "reference": "Sanity-check/Pages/knowlegeBase.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Upload a document with the Design ontology (Dev sanity check)",
+                "description": "Opens a project and uploads a PDF into the Knowledge Base selecting the Design Ontology, then starts analysis.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Provide a document with the Design ontology",
+                    "actions": [
+                      {
+                        "action": "Select the Design ontology",
+                        "description": "Adds documents/fileName.pdf via Add Document and selects Design Ontology before starting analysis.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "knowlegeBase.js", "reference": "Sanity-check/Pages/knowlegeBase.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Upload a document with the Architecture ontology (Dev sanity check)",
+                "description": "Opens a project and uploads a TXT document into the Knowledge Base selecting the Architecture Ontology, then starts analysis.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Provide a document with the Architecture ontology",
+                    "actions": [
+                      {
+                        "action": "Select the Architecture ontology",
+                        "description": "Adds documents/fileName.txt via Add Document and selects Architecture Ontology before starting analysis.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "knowlegeBase.js", "reference": "Sanity-check/Pages/knowlegeBase.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Change the application theme (Dev sanity check)",
+                "description": "Opens the user profile options and switches to a different theme, verifying theme selection works.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Switch the theme",
+                    "actions": [
+                      {
+                        "action": "Open the user profile options",
+                        "description": "Opens the user profile options to reveal the Themes control.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      },
+                      {
+                        "action": "Choose a different theme",
+                        "description": "Reads the currently selected theme and selects a different available theme.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Search and select a project (Dev sanity check)",
+                "description": "Ensures the target project is open by searching for it by name and selecting it, verifying navigation to the project dashboard.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Locate and open the project",
+                    "actions": [
+                      {
+                        "action": "Select an existing project by name",
+                        "description": "Searches by project name and opens the matching project; verifies the project dashboard is reached.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Select the first listed project (Dev sanity check)",
+                "description": "Selects the first project card shown on the dashboard to verify project entry works.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Open the first project",
+                    "actions": [
+                      {
+                        "action": "Select the first listed project",
+                        "description": "Opens the first project card displayed on the dashboard.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Open all capability cards on the project dashboard (Dev sanity check)",
+                "description": "Opens each capability card in sequence to verify each feature surface is reachable, returning to project home between each.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Open each capability card",
+                    "actions": [
+                      {
+                        "action": "Open all capability cards",
+                        "description": "Sequentially opens the Functional model, Knowledge graph, Architecture modeling, Semantic model, Code ontology, User story, AI chat, and Design cards, returning to project home between each.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "projectPage.js", "reference": "Sanity-check/Pages/projectPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Generate design metrics via website creation (Dev sanity check)",
+                "description": "Opens the Design/Mockups card and creates a new website ('Webstie Design') of type Web to exercise design generation.",
+                "citations": [
+                  { "type": "code", "name": "sanity.spec.mjs", "reference": "Sanity-check/tests/sanity.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Create a design website",
+                    "actions": [
+                      {
+                        "action": "Provide a website name for design generation",
+                        "description": "Opens the Design card, adds a website named 'Webstie Design' with type Web, and confirms creation.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "designPage.js", "reference": "Sanity-check/Pages/designPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Launch the BreezeAI dashboard (Dev regression check)",
+                "description": "Regression smoke check that the BreezeAI Dev dashboard loads. Navigates to https://ai.accionbreeze.com/ and asserts the title matches /Breeze.AI/i. Tagged @regression.",
+                "citations": [
+                  { "type": "code", "name": "completeregression.spec.mjs", "reference": "Sanity-check/tests/completeregression.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Load the BreezeAI Dev environment",
+                    "actions": [
+                      {
+                        "action": "Open the BreezeAI dashboard",
+                        "description": "Navigates to https://ai.accionbreeze.com/.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "completeregression.spec.mjs", "reference": "Sanity-check/tests/completeregression.spec.mjs" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the dashboard loaded",
+                        "description": "Asserts the document title matches /Breeze.AI/i.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "completeregression.spec.mjs", "reference": "Sanity-check/tests/completeregression.spec.mjs" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Create a BreezeAI project with a tag (Dev regression check)",
+                "description": "Creates a project with a timestamped name and an accompanying tag, exercising the tag-add flow during creation. Tagged @regression.",
+                "citations": [
+                  { "type": "code", "name": "completeregression.spec.mjs", "reference": "Sanity-check/tests/completeregression.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Provide project details and a tag",
+                    "actions": [
+                      {
+                        "action": "Provide a unique project name",
+                        "description": "label: Project name; generated as SanityCheck-<timestamp>-Automation.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      },
+                      {
+                        "action": "Specify a project tag",
+                        "description": "label: Tag; a tag (same value as the project name) is added during creation.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the project is created",
+                        "description": "Creates the project with name, description, and tag; logs the returned project ID.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "dashboardPage.js", "reference": "Sanity-check/Pages/dashboardPage.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Launch the BreezeAI dashboard (Prod sanity check)",
+                "description": "Sanity smoke check for the BreezeAI production dashboard. Navigates to https://ai.accionbreeze.com/ (waiting for domcontentloaded, ~1s settle) and asserts the title matches /Breeze.AI/i. Tagged @sanity.",
+                "citations": [
+                  { "type": "code", "name": "sanity_prod.spec.mjs", "reference": "Sanity-check/tests/sanity_prod.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Load the BreezeAI Prod environment",
+                    "actions": [
+                      {
+                        "action": "Open the BreezeAI production dashboard",
+                        "description": "Navigates to https://ai.accionbreeze.com/ and waits ~1s for the page to settle.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_prod.spec.mjs", "reference": "Sanity-check/tests/sanity_prod.spec.mjs" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the dashboard loaded",
+                        "description": "Asserts the document title matches /Breeze.AI/i.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_prod.spec.mjs", "reference": "Sanity-check/tests/sanity_prod.spec.mjs" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "outcome": "Validate AccionConnect Platform via Automated Sanity Checks",
+            "description": "Run the automated sanity suite that smoke-tests AccionConnect availability across the Dev and Prod environments — confirming the content/home pages load and the expected AccionConnect branding is present.",
+            "scenarios": [
+              {
+                "scenario": "Launch the AccionConnect content page (Dev sanity check)",
+                "description": "Sanity smoke check for the AccionConnect Dev environment. Navigates to https://connect-new.accionbreeze.com/content and asserts the title matches /AccionConnect/i. Tagged @sanity.",
+                "citations": [
+                  { "type": "code", "name": "sanity_acciondev.spec.mjs", "reference": "Sanity-check/tests/sanity_acciondev.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Load the AccionConnect Dev environment",
+                    "actions": [
+                      {
+                        "action": "Open the AccionConnect content page",
+                        "description": "Navigates to https://connect-new.accionbreeze.com/content.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_acciondev.spec.mjs", "reference": "Sanity-check/tests/sanity_acciondev.spec.mjs" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the content page loaded",
+                        "description": "Asserts the document title matches /AccionConnect/i.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_acciondev.spec.mjs", "reference": "Sanity-check/tests/sanity_acciondev.spec.mjs" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Launch the AccionConnect home page and sign in (Prod sanity check)",
+                "description": "Sanity smoke check for AccionConnect production. Navigates to https://connect.accionlabs.com/home, initiates Accion Labs sign-in if the control is present, and asserts the title matches /AccionConnect|Accion Connect/i. Tagged @sanity.",
+                "citations": [
+                  { "type": "code", "name": "sanity_accionprod.spec.mjs", "reference": "Sanity-check/tests/sanity_accionprod.spec.mjs" }
+                ],
+                "steps": [
+                  {
+                    "step": "Load the AccionConnect Prod environment and authenticate",
+                    "actions": [
+                      {
+                        "action": "Open the AccionConnect home page",
+                        "description": "Navigates to https://connect.accionlabs.com/home.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_accionprod.spec.mjs", "reference": "Sanity-check/tests/sanity_accionprod.spec.mjs" }
+                        ]
+                      },
+                      {
+                        "action": "Initiate Accion Labs sign-in",
+                        "description": "Selects the Accion Labs sign-in control if present (test id 'Accion-Labs-login-button' or matching text); continues gracefully if not found.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_accionprod.spec.mjs", "reference": "Sanity-check/tests/sanity_accionprod.spec.mjs" }
+                        ]
+                      },
+                      {
+                        "action": "Confirm the home page loaded",
+                        "description": "Asserts the document title matches /AccionConnect|Accion Connect/i.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "sanity_accionprod.spec.mjs", "reference": "Sanity-check/tests/sanity_accionprod.spec.mjs" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "project": {
+    "uuid": "e04087b5-5637-45a1-8298-2f9b8f31831e",
+    "name": "Automation UI Ontology - UI & API Test Suite Runner"
+  },
+  "skipStepAndAction": false
+}

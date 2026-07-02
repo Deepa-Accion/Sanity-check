@@ -1,0 +1,17 @@
+# Dependencies (third-party — never index)
+node_modules/
+frontend/node_modules/
+
+# Build / test output (generated artifacts, not source)
+test-results/
+playwright-report/
+custom-reports/
+frontend/test-results/
+frontend/dist/
+breezeai/
+
+# Non-source docs / planning
+documents/
+
+# Secrets / local config
+.breeze.json
