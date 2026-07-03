@@ -14,7 +14,7 @@ test.describe("Sanity Suite", () => {
     await page.goto("https://connect-new.accionbreeze.com/content");
     const title = await page.title();
     console.log("Page title after execution:", title);
-    expect(title).toMatch(/AccionConnect/i);
+    expect(title).toMatch(/AccionConnect/i); //Launched AccionConnect dashboard
   });
 
 });

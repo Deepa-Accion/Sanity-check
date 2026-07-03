@@ -24,7 +24,7 @@ test.describe("Sanity Suite", () => {
     projectName = `SanityCheck-${currectDateTime}-Automation`;
     projectId = await createProject(page, projectName, projectName);
     console.log("Project ID:", projectId);
-    console.log("Project Name:", projectName);
+    console.log("Project Name:", projectName); //Created project with name and description
   });
 
 });

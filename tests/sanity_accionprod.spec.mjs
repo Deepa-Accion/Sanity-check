@@ -29,7 +29,7 @@ test.describe("Sanity Suite", () => {
     
     const title = await page.title();
     console.log("Page title after execution:", title);
-    expect(title).toMatch(/AccionConnect|Accion\s+Connect/i);
+    expect(title).toMatch(/AccionConnect|Accion\s+Connect/i); //Launched AccionConnect dashboard
   });
 
 });
