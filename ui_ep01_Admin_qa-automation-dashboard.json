@@ -1,0 +1,145 @@
+{
+  "payload": {
+    "personas": [
+      {
+        "persona": "Admin",
+        "description": null,
+        "citations": [],
+        "outcomes": [
+          {
+            "outcome": "Manage OIDC Authentication Configuration",
+            "description": "Configure and persist OIDC session credentials used to authenticate automated Playwright test runs against the target application.",
+            "citations": [],
+            "scenarios": [
+              {
+                "scenario": "Persist OIDC session credentials to the test runner global configuration",
+                "description": "Admin supplies an OIDC session key and value (JSON) captured from a browser session, optionally masks the value for on-screen privacy, and saves the credentials into global-setup.js on the server so subsequent automated test runs can reuse them without re-entry. Saving creates a timestamped backup of the existing configuration file before overwriting it.",
+                "citations": [
+                  { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" },
+                  { "type": "code", "name": "global-setup.js", "reference": "Sanity-check/global-setup.js" }
+                ],
+                "steps": [
+                  {
+                    "step": "Manage authentication section display",
+                    "actions": [
+                      {
+                        "action": "Show or hide the authentication section",
+                        "description": "Show/Hide control in the Authentication header toggles visibility of the OIDC Key/Value inputs within the Test Configuration panel; type: boolean display state; default: visible (true).",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" }
+                        ]
+                      },
+                      {
+                        "action": "Set masked display of the OIDC value",
+                        "description": "label: Mask OIDC value; type: boolean; required: false; default: false; when enabled, the OIDC Value textarea displays 8 masked bullet characters instead of the raw JSON and becomes read-only; disabled when the authentication section is hidden.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" }
+                        ]
+                      },
+                      {
+                        "action": "Reveal the masked OIDC value",
+                        "description": "Reveal control is shown only when masked display is enabled; activating it sets masked display back to false so the raw OIDC Value JSON is shown again.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Specify OIDC session credentials",
+                    "actions": [
+                      {
+                        "action": "Provide the OIDC key",
+                        "description": "label: OIDC Key; type: text; required: true to save; default: empty string; placeholder: oidc.user:...; disabled while a test run is in progress or while the authentication section is hidden; help text explains the value is the session-storage key found via browser DevTools, Application, Session.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" }
+                        ]
+                      },
+                      {
+                        "action": "Provide the OIDC value",
+                        "description": "label: OIDC Value (JSON); type: JSON text (multiline); required: true to save; default: empty string; placeholder: an id_token JSON blob; validation: must parse as valid JSON (client-side JSON.parse) both before running a test and before saving; invalid JSON blocks the save and shows an error notification asking to fix the JSON before saving; disabled while a test run is in progress, the authentication section is hidden, or masked display is enabled; help text explains the value is the session-storage value copied from browser DevTools, Application, Session.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Submit the OIDC credentials for persistence",
+                    "actions": [
+                      {
+                        "action": "Submit OIDC credentials to server configuration",
+                        "description": "Requires both OIDC Key and OIDC Value to be non-empty, otherwise blocked client-side with a notification to provide both before saving; requires the user to confirm a security warning that this will write sensitive OIDC data into global-setup.js on the server as a permanent file change before sending; on the server, a timestamped backup of global-setup.js is created (global-setup.js.bak.timestamp) before the defaultOidcKey and defaultOidcValue constants in that file are rewritten with the submitted values.",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/save-oidc",
+                            "request": "JSON body: oidcKey (string), oidcValue (object, parsed OIDC JSON)",
+                            "response": "200: success true and a backup file path; 400: missing oidcKey or oidcValue, or OIDC value is not valid JSON; 500: global-setup.js not found on server, or an exception message"
+                          }
+                        ],
+                        "citations": [
+                          { "type": "code", "name": "App.jsx", "reference": "Sanity-check/frontend/src/App.jsx" },
+                          { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" },
+                          { "type": "code", "name": "global-setup.js", "reference": "Sanity-check/global-setup.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "audit": {
+    "entryPoint": "/",
+    "persona": "Admin",
+    "filesRead": [
+      "Sanity-check/frontend/src/App.jsx",
+      "Sanity-check/frontend/src/main.jsx",
+      "Sanity-check/server.js",
+      "Sanity-check/global-setup.js"
+    ],
+    "skippedComponents": [
+      { "file": "Sanity-check/frontend/src/styles.css", "reason": "Pure CSS stylesheet, no state or interactive logic" }
+    ],
+    "skippedForVisibility": [],
+    "codeGraphSearches": [
+      {
+        "query": "QA Automation Dashboard Admin Sanity-check",
+        "reason": "mandatory hygiene sweep - tool was not available in this session's tool list; attempted per policy and documented as unavailable",
+        "hits": 0,
+        "filesAddedToRead": []
+      }
+    ],
+    "warnings": [
+      {
+        "type": "code_graph_tool_unavailable",
+        "note": "The Code_Graph_Search tool was not present in this session's tool list (only Read, Glob, Grep, Bash were available). Discovery was completed via exhaustive Read, Glob, Grep instead: App.jsx is the entire frontend (main.jsx only bootstraps it, styles.css is pure CSS), and server.js and global-setup.js were read in full to resolve every fetch call and the save-oidc file-persistence logic. Grep sweeps for role, permission, admin, persona patterns across the frontend and server.js returned zero hits."
+      },
+      {
+        "type": "no_gates_found",
+        "note": "No role, permission, feature-flag, or subscription-tier conditional rendering exists anywhere in App.jsx or server.js; every control on the dashboard is visible identically regardless of persona. Per the EXISTING_NEIGHBORHOOD note, the run, monitor, stop, reset, report scenarios are already captured under the QA Engineer persona; this Admin payload is scoped to the config-persistence (save OIDC to file) capability that the QA Engineer payload explicitly deferred to Admin, rather than re-declaring identical shared dashboard actions."
+      }
+    ],
+    "stats": {
+      "scenarios": 1,
+      "steps": 3,
+      "actions": 6,
+      "actionsWithApis": 1,
+      "fieldsEnumerated": 3,
+      "filesRead": 4,
+      "codeGraphSearchCount": 0,
+      "actionsSkippedForOtherPersonas": 0
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "project": "Sanity-check",
+  "projectUuid": "e04087b5-5637-45a1-8298-2f9b8f31831e",
+  "framework": "react",
+  "routerFile": null,
+  "uiRepo": "D:\\PRTesting\\Sanity-check",
+  "stack": "spa",
+  "generatedAt": "2026-06-30T12:45:00Z",
+  "personas": [
+    { "name": "QA Engineer", "source": "frontend/src/App.jsx:341", "isExisting": false },
+    { "name": "Admin", "source": "frontend/src/App.jsx:464", "isExisting": false }
+  ],
+  "personasConfirmedAt": "2026-06-30T12:45:00Z",
+  "panels": [],
+  "totalEntryPoints": 1,
+  "entryPoints": [
+    {
+      "id": 1,
+      "route": "/",
+      "title": "QA Automation Dashboard",
+      "component": "frontend/src/App.jsx",
+      "pageDir": "frontend/src",
+      "auth": false,
+      "params": [],
+      "queryParams": [],
+      "variants": [],
+      "personas": ["QA Engineer", "Admin"],
+      "type": "route",
+      "category": "Test Automation",
+      "status": "completed"
+    }
+  ],
+  "completed": [
+    {
+      "epId": 1,
+      "persona": "QA Engineer",
+      "title": "QA Automation Dashboard",
+      "outcomeName": "Configure and Execute Automated Test Runs; Access and Review Test Reports",
+      "scenariosCreated": 5,
+      "actionsCreated": 23,
+      "apiCallsLogged": 6,
+      "fieldsEnumerated": 7,
+      "codeGraphSearchCount": 1,
+      "actionsSkippedForOtherPersonas": 1,
+      "payloadPath": "ui_ep01_QAEngineer_qa-automation-dashboard.json",
+      "completedAt": "2026-06-30T15:47:22Z"
+    },
+    {
+      "epId": 1,
+      "persona": "Admin",
+      "title": "QA Automation Dashboard",
+      "outcomeName": "Manage OIDC Authentication Configuration",
+      "scenariosCreated": 1,
+      "actionsCreated": 6,
+      "apiCallsLogged": 1,
+      "fieldsEnumerated": 3,
+      "codeGraphSearchCount": 0,
+      "actionsSkippedForOtherPersonas": 0,
+      "verificationScore": 0.82,
+      "payloadPath": "ui_ep01_Admin_qa-automation-dashboard.json",
+      "completedAt": "2026-07-02T07:59:42Z"
+    }
+  ],
+  "remaining": [],
+  "orphans": {
+    "deadCode": [],
+    "subComponentsFolded": [],
+    "backendEndpointsWithNoFrontendCaller": []
+  }
+}
