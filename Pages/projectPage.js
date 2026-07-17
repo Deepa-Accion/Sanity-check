@@ -51,7 +51,7 @@ async function openCard(page, patterns, label) {
 }
 
 export async function projectHome(page, projectId = null) {
-  await page.goto(`https://ai.accionbreeze.com/dashboard/${projectId}`);
+  await page.goto(`${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}dashboard/${projectId}`);
 }
 
 export async function knowlegeGraphGeneration(page) {

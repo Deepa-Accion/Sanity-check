@@ -1,0 +1,4 @@
+
+# Generated localhost spec copies (created at runtime by server.js)
+tests/sanity.localhost.spec.mjs
+tests/completeregression.localhost.spec.mjs

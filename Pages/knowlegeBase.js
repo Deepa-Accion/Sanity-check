@@ -360,7 +360,7 @@ export async function connectRepoInKnowledgeBase(page, gitURL) {
 }
 
 export async function uploadDocumentInAIChat(page, fileType = 'pdf', projectId) {
-  await page.goto(`https://ai.accionbreeze.com/chat/requirement_agent/${projectId}`);
+  await page.goto(`${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}chat/requirement_agent/${projectId}`);
   const filePath = join(__dirname, '..', 'documents', `fileName.${fileType}`);
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
 }

@@ -3,7 +3,9 @@ import { expect } from "@playwright/test";
 // Page Object for BreezeAI Dashboard
 // Encapsulates actions like creating a project
 
-export const DEFAULT_BASE_URL = "https://ai.accionbreeze.com/";
+// Base URL is env-driven so localhost runs (TARGET_URL) hit the local app;
+// falls back to the dev URL for the standard dev/prod runs.
+export const DEFAULT_BASE_URL = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
 
 /**
  * Create a new project from the BreezeAI dashboard.

@@ -5,13 +5,18 @@ const { deviceScaleFactor: _dsf, ...DesktopChromeNoDsf } = devices['Desktop Chro
 
 const BASE_URL = "https://ai.accionbreeze.com/";
 
+// Localhost mode (set by the runner): target a local app and skip OIDC auth
+// (no global-setup login, no stored auth state).
+const isLocalhostRun = process.env.LOCALHOST_RUN === "true";
+const TARGET_URL = process.env.TARGET_URL || BASE_URL;
+
 export default defineConfig({
   timeout: 300000, // 5 minutes - accommodate 2-3 min metrics generation
   expect: { timeout: 20000 },
-  globalSetup: "./global-setup.js",
+  ...(isLocalhostRun ? {} : { globalSetup: "./global-setup.js" }),
   use: {
-    baseURL: BASE_URL,
-    storageState: "auth.json",
+    baseURL: TARGET_URL,
+    ...(isLocalhostRun ? {} : { storageState: "auth.json" }),
     screenshot: "only-on-failure",
     trace: "on-first-retry",
     viewport: null,
