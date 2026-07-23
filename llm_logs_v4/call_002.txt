@@ -1,0 +1,145 @@
+=== LLM CALL #2 ===
+Model: us.anthropic.claude-sonnet-4-20250514-v1:0
+Max tokens: 8192
+System prompt tokens (est): ~1092
+User prompt tokens (est): ~343
+
+============================================================
+SYSTEM PROMPT:
+============================================================
+You are an Outcome Assignment Agent.
+
+Given a cluster of RELATED functional intents for a single persona, do FOUR things:
+
+1. FILTER NON-FUNCTIONAL: Drop intents that describe infrastructure, not business capabilities.
+   These are NOT functional intents — drop them immediately:
+   - Validation schemas, DTO definitions, type definitions (e.g., "Define validation schemas for X")
+   - Database index creation, vector index setup, text search configuration
+   - Database connection management, session handling, transaction plumbing
+   - JSON serialization/deserialization, circular reference handling, object graph reconstruction
+   - HTTP client wrappers, generic API request helpers
+   - Route/controller decorator definitions, authentication guards/middleware
+   - Error boundaries, lazy loading, retry mechanisms
+   - Theme switching, dark mode toggling
+   - Pagination mechanics, sidebar/panel layout, dropdown mechanics
+   - Unsaved changes detection, loading states, progress indicators
+   - Auth token refresh, session sync across tabs
+   - Font parsing, glyph metrics, typography internals
+   - Geometric calculations, point interpolations (unless the product IS a geometry tool)
+
+   HOWEVER: If a non-functional intent contains SOME business logic, ABSORB it into the
+   related business intent rather than dropping it entirely.
+   Example: "Define validation schemas for user story management" → absorb into
+   "Create and manage user stories" (the validation supports the business capability)
+
+2. MERGE SIMILAR: If multiple intents describe overlapping aspects of the SAME capability,
+   merge them into ONE intent with a richer, more descriptive phrase that captures the
+   combined meaning. The merged intent should be 5-15 words and cover all merged inputs.
+   Example:
+     Input:  ["Create functional nodes with metadata", "Update functional graph node properties"]
+     Merged: "Create and update functional graph nodes with detailed metadata and properties"
+
+3. DEDUPLICATE: After merging, if any remaining intents are exact or near-exact duplicates,
+   drop the less descriptive one.
+
+4. ASSIGN OUTCOMES: Map each final intent (merged or kept as-is) to an Outcome.
+
+MERGE RULES:
+- Merge intents that describe the SAME business entity with different operations or details
+- The merged intent MUST preserve all distinct information from the inputs
+- Do NOT merge intents with different VERBS that represent different capabilities:
+  Create vs Clone, Update vs Delete, Search vs Filter, Import vs Export
+  "Create X" and "Clone X" are NOT the same — creating from scratch ≠ copying existing
+- Do NOT merge intents about different entities or different data sources
+
+DEDUP RULES (applied AFTER merging):
+- Near-identical wording after merge: DROP the less descriptive one
+- Singular vs plural: DROP one
+- Generic + specific version of same action: KEEP specific, DROP generic
+- Different filter/criteria (by Skills vs by City): KEEP BOTH (different capabilities)
+- Action vs viewing result (Follow vs Get Followed): KEEP BOTH (different flows)
+- Same operation on different data sources: KEEP BOTH (different pipelines)
+- When in doubt, KEEP BOTH. False negatives (missing intents) are worse than false positives (extra intents)
+
+OUTCOME RULES:
+- Outcomes = high-level business capabilities (not technical functions)
+- REUSE existing outcomes when provided
+- Only create new outcomes if no existing one fits
+- Target 3-8 outcomes per persona total
+
+OUTCOME SIZE RULES:
+- An outcome should have AT MOST 6 intents. If you are about to assign a 7th intent
+  to an existing outcome, STOP and create a new, more specific outcome instead.
+- Split by the primary entity (noun), not the action (verb).
+- When an outcome grows too large, look at the intents already assigned and identify
+  natural sub-groupings by entity or domain area.
+
+OUTPUT FORMAT (strict JSON):
+{
+  "unique_intents": [
+    {"intent": "<final intent text>", "outcome": "<outcome name>", "merged_from": ["<original 1>", "<original 2>"]}
+  ],
+  "dropped_intents": [
+    {"intent": "<dropped>", "reason": "<why dropped — non-functional | duplicate | absorbed into X>", "kept_as": "<the representative, or null if pure infrastructure>"}
+  ]
+}
+
+NOTE: "merged_from" is optional — include it only when the intent was merged from multiple inputs.
+If the intent was kept as-is, omit "merged_from".
+
+
+============================================================
+USER PROMPT:
+============================================================
+Persona: User
+
+Existing outcomes with their assigned intents (REUSE outcomes, drop intents that duplicate already-assigned ones):
+[]
+
+Remaining intents to process (grouped by topic similarity):
+[
+  "Access web pages and modify browser functionality through extension integration",
+  "Install and configure browser extension with defined permissions and behaviors",
+  "Execute background script services for extension core functionality",
+  "Control web page capture and download workflow states",
+  "Capture and process network-related web page interactions",
+  "Track and capture user interactions with web page elements",
+  "Track and manage browser tab recording sessions",
+  "Request user consent for browser tab recording",
+  "Configure network request capture and filtering",
+  "Visualize browser network events and console logs",
+  "Capture and report global mouse and element coordinates",
+  "Draw visual markers and annotations on captured content",
+  "Generate detailed element identification metadata",
+  "Generate timestamps and unique file names for downloads",
+  "Download and organize web page files and resources",
+  "Control recording state with pause, resume, and stop actions"
+]
+
+IMPORTANT:
+1. Drop any intents that duplicate capabilities already covered by existing outcomes
+2. Assign unique intents to existing outcomes or create new ones ONLY if needed
+
+============================================================
+RESPONSE:
+============================================================
+```json
+{
+  "unique_intents": [
+    {"intent": "Install and configure browser extension with defined permissions and behaviors", "outcome": "Browser Extension Management"},
+    {"intent": "Execute background script services for extension core functionality", "outcome": "Browser Extension Management"},
+    {"intent": "Access web pages and modify browser functionality through extension integration", "outcome": "Browser Extension Management"},
+    {"intent": "Track and manage browser tab recording sessions with user consent", "outcome": "Web Page Recording", "merged_from": ["Track and manage browser tab recording sessions", "Request user consent for browser tab recording"]},
+    {"intent": "Control recording state with pause, resume, and stop actions", "outcome": "Web Page Recording"},
+    {"intent": "Control web page capture and download workflow states", "outcome": "Web Page Recording"},
+    {"intent": "Capture and process network-related web page interactions with filtering", "outcome": "Web Content Capture", "merged_from": ["Capture and process network-related web page interactions", "Configure network request capture and filtering"]},
+    {"intent": "Track and capture user interactions with web page elements", "outcome": "Web Content Capture"},
+    {"intent": "Capture and report global mouse and element coordinates", "outcome": "Web Content Capture"},
+    {"intent": "Generate detailed element identification metadata", "outcome": "Web Content Capture"},
+    {"intent": "Visualize browser network events and console logs", "outcome": "Content Analysis and Visualization"},
+    {"intent": "Draw visual markers and annotations on captured content", "outcome": "Content Analysis and Visualization"},
+    {"intent": "Download and organize web page files and resources with unique naming", "outcome": "File Management", "merged_from": ["Download and organize web page files and resources", "Generate timestamps and unique file names for downloads"]}
+  ],
+  "dropped_intents": []
+}
+```
