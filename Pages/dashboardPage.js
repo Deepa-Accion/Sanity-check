@@ -3,6 +3,8 @@ import { expect } from "@playwright/test";
 // Page Object for BreezeAI Dashboard
 // Encapsulates actions like creating a project
 
+export const DEFAULT_BASE_URL = "https://ai.accionbreeze.com/";
+
 /**
  * Create a new project from the BreezeAI dashboard.
  * Adjust selectors as needed to match the real UI.
@@ -199,9 +201,6 @@ export async function menuItemClick(page) {
 
 }
 
-export async function logout(page) {
-  await page.getByRole('menuitem', { name: 'Log out' }).click();
-}
 export async function theamChange(page) {
    await page.getByRole('menuitem', { name: 'Themes' }).press('Enter')
   const themeItems = page.locator('div[role="menuitem"]');
@@ -214,6 +213,107 @@ export async function theamChange(page) {
     hasNotText: selectedThemeName
   }).first();
   await newTheme.click();
+}
+
+// ---------------------------------------------------------------------------
+// Theme preference helpers
+// Used by the theme-persistence regression suite to change / revert / read the
+// active theme and to drive the logout -> re-login lifecycle. They reuse the
+// same selectors as `theamChange` (the currently-selected theme is marked with
+// `span.text-primary`) so behaviour stays consistent with the sanity check.
+// ---------------------------------------------------------------------------
+
+/**
+ * Open the user profile menu and expand the Themes submenu so the theme
+ * options (and the currently-selected marker) are visible.
+ * @param {import('@playwright/test').Page} page
+ */
+export async function openThemePreferences(page) {
+  await menuItemClick(page);
+  const themesMenuItem = page.getByRole('menuitem', { name: /themes/i });
+  await expect(themesMenuItem).toBeVisible({ timeout: 10000 });
+  await themesMenuItem.press('Enter');
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Read the name of the currently-applied theme. Assumes the Themes submenu is
+ * already open (call {@link openThemePreferences} first). The selected theme is
+ * the only menu item containing a `span.text-primary` marker.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string>}
+ */
+export async function getSelectedThemeName(page) {
+  const selectedTheme = page
+    .locator('div[role="menuitem"]')
+    .filter({ has: page.locator('span.text-primary') });
+  await expect(selectedTheme.first()).toBeVisible({ timeout: 10000 });
+  return (await selectedTheme.locator('span').first().innerText()).trim();
+}
+
+/**
+ * Change the active theme to a different one. Assumes the Themes submenu is
+ * open. Returns the previously-selected theme and the newly-selected theme.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<{ original: string, changed: string }>}
+ */
+export async function changeToDifferentTheme(page) {
+  const themeItems = page.locator('div[role="menuitem"]');
+  const original = await getSelectedThemeName(page);
+
+  const newTheme = themeItems.filter({ hasNotText: original }).first();
+  await expect(newTheme).toBeVisible({ timeout: 10000 });
+  const changed = (await newTheme.locator('span').first().innerText()).trim();
+  await newTheme.click();
+  await page.waitForTimeout(1000);
+
+  return { original, changed };
+}
+
+/**
+ * Select a specific theme by its visible name. Assumes the Themes submenu is
+ * open. Used to revert to the original theme.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} themeName
+ */
+export async function selectThemeByName(page, themeName) {
+  const target = page
+    .locator('div[role="menuitem"]')
+    .filter({ hasText: themeName })
+    .first();
+  await expect(target).toBeVisible({ timeout: 10000 });
+  await target.click();
+  await page.waitForTimeout(1000);
+}
+
+/**
+ * Log out of the application. Opens the user profile menu (closing any open
+ * submenu first) and clicks Log out, then waits for the session to end.
+ * @param {import('@playwright/test').Page} page
+ */
+export async function logout(page) {
+  // Dismiss any open theme submenu/overlay before re-opening the profile menu.
+  await page.keyboard.press('Escape').catch(() => {});
+  await menuItemClick(page);
+  const logoutItem = page.getByRole('menuitem', { name: /log\s*out/i });
+  await expect(logoutItem).toBeVisible({ timeout: 10000 });
+  await logoutItem.click();
+  await page.waitForLoadState('domcontentloaded').catch(() => {});
+  await page.waitForTimeout(2000);
+}
+
+/**
+ * Log back in to the application. The OIDC session is re-injected into
+ * sessionStorage on every navigation by the auth fixture, so navigating to the
+ * dashboard re-establishes the authenticated session. Handles the "Sign in with
+ * Accion Labs" landing button if it is shown.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} [baseUrl]
+ */
+export async function login(page, baseUrl = DEFAULT_BASE_URL) {
+  await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await ensureDashboardReady(page);
 }
 
 export async function searchProject(page, projectName) {

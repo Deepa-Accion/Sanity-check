@@ -113,3 +113,96 @@ export async function userStory(page) {
     "User story"
   );
 }
+
+// ---------------------------------------------------------------------------
+// AI Chat Assistant interaction helpers (AG-7)
+//
+// The existing `aiChatAssistant` above only OPENS the chat panel. These helpers
+// extend that to actually send a query and read back the assistant's response
+// so regression tests can assert on the content. Selectors use the same
+// multi-fallback style as the rest of this repo — adjust the concrete
+// selectors if the live chat DOM differs.
+// ---------------------------------------------------------------------------
+
+// Broad selector for the assistant's rendered reply bubbles. Kept permissive
+// because the chat DOM is not statically known; the last match is treated as
+// the most recent assistant response.
+const ASSISTANT_MESSAGE_SELECTOR =
+  '[data-role="assistant"], [data-message-role="assistant"], [class*="assistant" i], ' +
+  '[class*="bot" i], [class*="response" i], [class*="message" i]';
+
+function chatInputLocator(page) {
+  return page
+    .locator(
+      'textarea[placeholder*="ask" i], textarea[placeholder*="message" i], textarea[placeholder*="type" i], ' +
+        'input[placeholder*="ask" i], input[placeholder*="message" i], input[placeholder*="type" i], ' +
+        'textarea, [contenteditable="true"]'
+    )
+    .first();
+}
+
+/**
+ * Type a query into the AI Chat Assistant input and submit it. Assumes the chat
+ * panel is already open (call {@link aiChatAssistant} first).
+ * @param {import('@playwright/test').Page} page
+ * @param {string} query
+ */
+export async function sendChatQuery(page, query) {
+  await page.waitForLoadState("domcontentloaded");
+
+  const input = chatInputLocator(page);
+  await expect(input).toBeVisible({ timeout: 15000 });
+  await input.click();
+  await input.fill(query);
+
+  // Prefer an explicit Send/Submit control; fall back to pressing Enter.
+  const sendBtn = page.getByRole("button", { name: /send|submit|ask/i }).first();
+  const sendVisible = await sendBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  if (sendVisible) {
+    await sendBtn.click();
+  } else {
+    await input.press("Enter");
+  }
+
+  console.log(`[projectPage] Sent chat query: ${query}`);
+}
+
+/**
+ * Wait for the AI Chat Assistant to finish responding and return the text of
+ * the latest assistant reply. Handles AI latency and token streaming by polling
+ * until the last response's text stops changing (stable for two polls).
+ * @param {import('@playwright/test').Page} page
+ * @param {{ timeout?: number, minResponses?: number }} [opts]
+ * @returns {Promise<string>} the final assistant response text
+ */
+export async function waitForChatResponse(page, { timeout = 120000, minResponses = 1 } = {}) {
+  const responses = page.locator(ASSISTANT_MESSAGE_SELECTOR);
+
+  // 1. Wait until at least one assistant reply is rendered.
+  await expect
+    .poll(async () => await responses.count().catch(() => 0), {
+      timeout,
+      intervals: [1000, 2000, 3000],
+    })
+    .toBeGreaterThanOrEqual(minResponses);
+
+  // 2. Wait for streaming to settle: the last reply's text must be non-empty
+  //    and unchanged across two consecutive polls.
+  const last = responses.last();
+  let prev = "";
+  let stable = 0;
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline && stable < 2) {
+    await page.waitForTimeout(2000);
+    const text = (await last.innerText().catch(() => "")).trim();
+    if (text && text === prev) {
+      stable += 1;
+    } else {
+      stable = 0;
+    }
+    prev = text;
+  }
+
+  console.log(`[projectPage] Chat response (${prev.length} chars): ${prev.slice(0, 200)}`);
+  return prev;
+}
