@@ -21,7 +21,7 @@ app.post("/api/run-test", async (req, res) => {
     return res.status(409).json({ error: "A test run is already in progress." });
   }
 
-  const { testType, testScenario, browser, headless, oidcKey, oidcValue } = req.body;
+  const { testType, testScenario, browser, headless, oidcKey, oidcValue, isLocalhost, localhostUrl } = req.body;
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -29,11 +29,40 @@ app.post("/api/run-test", async (req, res) => {
     'breezeai sanity prod': 'tests/sanity_prod.spec.mjs',
     'accionconnect sanity dev': 'tests/sanity_acciondev.spec.mjs',
     'accionconnect sanity prod': 'tests/sanity_accionprod.spec.mjs',
-    'breezeai complete regression dev': 'tests/completeregression.spec.mjs'
+    'breezeai complete regression dev': 'tests/completeregression.spec.mjs',
+    // Localhost sanity: source spec is the dev sanity suite; a localhost copy is generated below.
+    'breezeai sanity localhost': 'tests/sanity.spec.mjs'
   };
 
   const normalizedScenario = (testScenario || '').toLowerCase();
-  const specFile = scenarioMap[normalizedScenario] || null;
+  let specFile = scenarioMap[normalizedScenario] || null;
+
+  // Localhost mode: validate the URL, generate a copy of the source sanity spec with the
+  // dev URL swapped for the user's localhost URL, and run that copy without OIDC auth.
+  const DEV_URL = 'https://ai.accionbreeze.com/';
+  const localhostMode = Boolean(isLocalhost) || normalizedScenario === 'breezeai sanity localhost';
+  let targetUrl = null;
+  if (localhostMode) {
+    let normalizedUrl;
+    try {
+      const u = new URL(localhostUrl);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+      normalizedUrl = u.href.endsWith('/') ? u.href : `${u.href}/`;
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid or missing localhostUrl. Provide a valid http(s) URL, e.g. http://localhost:5173' });
+    }
+    targetUrl = normalizedUrl;
+
+    const sourceRel = scenarioMap['breezeai sanity localhost'];
+    const sourcePath = path.join(process.cwd(), sourceRel);
+    if (!fs.existsSync(sourcePath)) {
+      return res.status(500).json({ error: `Source spec not found: ${sourceRel}` });
+    }
+    const generatedRel = 'tests/sanity.localhost.spec.mjs';
+    const generated = fs.readFileSync(sourcePath, 'utf8').split(DEV_URL).join(targetUrl);
+    fs.writeFileSync(path.join(process.cwd(), generatedRel), generated, 'utf8');
+    specFile = generatedRel;
+  }
 
   if (!specFile && !browser) {
     return res.status(400).json({ error: "Missing testScenario or browser in request body." });
@@ -53,7 +82,7 @@ app.post("/api/run-test", async (req, res) => {
       specFile,
       '--project',
       browser,
-      '--reporter=json,html'
+      '--workers=1'
     ];
   } else {
     const tag = testType || (normalizedScenario.includes('regression') ? 'regression' : 'sanity');
@@ -65,12 +94,19 @@ app.post("/api/run-test", async (req, res) => {
       `@${tag}`,
       '--project',
       browser,
-      '--reporter=json,html'
+      '--workers=1'
     ];
   }
 
   // Prepare environment for child process and inject OIDC values if provided
   const childEnv = { ...process.env };
+  if (localhostMode && targetUrl) {
+    // Propagate the target URL so the page objects (and playwright.config baseURL)
+    // navigate to localhost, and flag localhost so OIDC auth/global-setup is skipped.
+    childEnv.TARGET_URL = targetUrl;
+    childEnv.LOCALHOST_RUN = 'true';
+    logs.push(`Localhost mode: targeting ${targetUrl} (OIDC authentication skipped).`);
+  }
   if (oidcKey) {
     childEnv.OIDC_KEY = oidcKey;
     logs.push('OIDC key provided and forwarded to test runner.');
@@ -112,9 +148,9 @@ app.post("/api/run-test", async (req, res) => {
   child.stderr.on("data", (data) => pushLogs(data, "stderr"));
 
   const timeout = setTimeout(() => {
-    logs.push("Run timed out after 5 minutes. Killing process.");
+    logs.push("Run timed out after 45 minutes. Killing process.");
     killProcessTree(child);
-  }, 5 * 60 * 1000);
+  }, 45 * 60 * 1000);
 
   child.on("close", (code) => {
     clearTimeout(timeout);
@@ -131,9 +167,23 @@ app.post("/api/run-test", async (req, res) => {
       logs.push(`HTML report generated at ${reportPath}`);
     }
 
-    // Attempt to produce a custom HTML report by parsing the JSON reporter output (best-effort)
+    // Pick up the latest file written by HealingReporter (custom-reports/report-*.html)
     let customReportAvailable = false;
-    try {
+    const customReportsDir = path.join(process.cwd(), 'custom-reports');
+    if (fs.existsSync(customReportsDir)) {
+      const htmlFiles = fs.readdirSync(customReportsDir)
+        .filter(f => f.startsWith('report-') && f.endsWith('.html'))
+        .map(f => ({ name: f, mtime: fs.statSync(path.join(customReportsDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      if (htmlFiles.length > 0) {
+        lastCustomReportPath = path.join(customReportsDir, htmlFiles[0].name);
+        customReportAvailable = true;
+        logs.push(`Custom report available at ${lastCustomReportPath}`);
+      }
+    }
+
+    // Legacy: also attempt to produce a custom report by parsing the JSON reporter output if no HealingReporter output found
+    if (!customReportAvailable) try {
       const tryParseJsonFromStdout = (buf) => {
         // Search for candidate JSON substrings and return the first successfully parsed object that looks like Playwright report
         const candidates = [];
@@ -379,8 +429,8 @@ app.post("/api/run-test", async (req, res) => {
       }
     } catch (e) {
       logs.push(`Failed to parse JSON reporter output: ${e.message}`);
-    }
-    const reportAvailable = Boolean(success && reportExists);
+    } // end legacy JSON parsing
+    const reportAvailable = Boolean(reportExists);
 
     res.status(success ? 200 : 500).json({ success, logs, reportAvailable, customReportAvailable, customReportPath: lastCustomReportPath });
   });

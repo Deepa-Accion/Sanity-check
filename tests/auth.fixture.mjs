@@ -14,7 +14,8 @@ try {
 
 const test = base.extend({
   page: async ({ page }, use) => {
-    if (sessionAuth?.key && sessionAuth?.value) {
+    // In localhost mode there is no OIDC session to inject — skip it entirely.
+    if (process.env.LOCALHOST_RUN !== "true" && sessionAuth?.key && sessionAuth?.value) {
       await page.addInitScript(({ key, value }) => {
         try {
           const v = typeof value === "string" ? value : JSON.stringify(value);

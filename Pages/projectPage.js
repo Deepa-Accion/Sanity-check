@@ -1,4 +1,10 @@
 import { expect } from "@playwright/test";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { checkAndRecoverFromAppError } from "../tests/test-utils.mjs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export async function openAllCards(page, projectId = null) {
   await knowlegeGraphGeneration(page);
@@ -51,7 +57,8 @@ async function openCard(page, patterns, label) {
 }
 
 export async function projectHome(page, projectId = null) {
-  await page.goto(`https://ai.accionbreeze.com/dashboard/${projectId}`);
+  await page.goto(`${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}dashboard/${projectId}`);
+  await checkAndRecoverFromAppError(page);
 }
 
 export async function knowlegeGraphGeneration(page) {
@@ -205,4 +212,74 @@ export async function waitForChatResponse(page, { timeout = 120000, minResponses
 
   console.log(`[projectPage] Chat response (${prev.length} chars): ${prev.slice(0, 200)}`);
   return prev;
+}
+
+/**
+ * Navigate to the Code Ontology page for a project, create a new ontology entry
+ * by uploading a pre-generated ndjson.gz dependency-tree file, then trigger
+ * generation and wait for the entry to appear in the list.
+ *
+ * Prerequisites: generate the ndjson.gz once with:
+ *   uvx --from git+https://github.com/accionlabs/breezeai-cog breezeai-cog \
+ *     repo-to-json-tree --capture-statements --repo <repo-path> --out documents/
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} projectId
+ * @param {string} ontologyName  Display name for the new ontology
+ * @param {string} [fileName]    Filename inside the documents/ folder (default: sanity-check-repo.ndjson.gz)
+ */
+export async function uploadAndGenerateCodeOntology(page, projectId, ontologyName, fileName = 'sanity-check-repo.ndjson.gz') {
+  const baseUrl = process.env.TARGET_URL || 'https://ai.accionbreeze.com/';
+  const filePath = join(__dirname, '..', 'documents', fileName);
+
+  console.log(`[codeOntology] Navigating to /code-ontology/${projectId}`);
+  await page.goto(`${baseUrl}code-ontology/${projectId}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(4000);
+
+  // Open the create dialog
+  const newBtn = page.locator('button').filter({ hasText: /New\s+Ontology/i }).first();
+  await expect(newBtn).toBeVisible({ timeout: 15000 });
+  await newBtn.click();
+  await page.waitForTimeout(2000);
+  console.log('[codeOntology] Opened New Ontology dialog');
+
+  // Fill in the ontology name
+  const nameInput = page.locator('input[placeholder*="Backend API" i]').first();
+  await expect(nameInput).toBeVisible({ timeout: 8000 });
+  await nameInput.fill(ontologyName);
+  console.log(`[codeOntology] Set name: "${ontologyName}"`);
+
+  // Upload the ndjson.gz — the file input accepts .json and .gz
+  const fileInput = page.locator('#json-upload, input[accept*=".gz"]').first();
+  console.log(`[codeOntology] Uploading: ${filePath}`);
+  await fileInput.setInputFiles(filePath);
+  await page.waitForTimeout(2000);
+
+  // Click Save to submit
+  const saveBtn = page.locator('button').filter({ hasText: /^Save$/i }).first();
+  await expect(saveBtn).toBeVisible({ timeout: 5000 });
+  await saveBtn.click();
+  console.log('[codeOntology] Clicked Save — waiting for entry to appear...');
+  await page.waitForTimeout(5000);
+
+  // Confirm the ontology entry appeared in the list
+  const ontologyEntry = page.locator('div, li, tr').filter({ hasText: ontologyName }).first();
+  const appeared = await ontologyEntry.isVisible({ timeout: 30000 }).catch(() => false);
+  if (appeared) {
+    console.log(`[codeOntology] Ontology "${ontologyName}" created successfully`);
+  } else {
+    console.log('[codeOntology] Ontology entry not visible yet — may still be processing');
+  }
+
+  // Click Generate if a Generate button is present next to the entry
+  const generateBtn = page.locator('button').filter({ hasText: /^Generate$/i }).first();
+  const genVisible = await generateBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  if (genVisible) {
+    console.log('[codeOntology] Clicking Generate...');
+    await generateBtn.click();
+    await page.waitForTimeout(10000);
+    console.log('[codeOntology] Generation triggered — processing in background');
+  } else {
+    console.log('[codeOntology] No Generate button found — upload may be sufficient');
+  }
 }

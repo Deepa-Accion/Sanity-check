@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test:sanity": "playwright test tests/sanity.spec.mjs --project=chromium --workers=1 --reporter=list"
+    "test:sanity": "playwright test tests/sanity.spec.mjs --project=chromium --workers=1",
+    "capture-session": "node scripts/capture-session.mjs",
+    "test:localhost": "cross-env TARGET_URL=http://localhost:5173/ playwright test tests/sanity.spec.mjs --project=chromium --workers=1"
   },
   "dependencies": {
     "22": "^0.0.0",

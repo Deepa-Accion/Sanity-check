@@ -20,9 +20,14 @@ export default function App() {
   const [maskOidcValue, setMaskOidcValue] = useState(false);
   const [customReportAvailable, setCustomReportAvailable] = useState(false);
   const [customReportPath, setCustomReportPath] = useState(null);
+  const [localhostUrl, setLocalhostUrl] = useState('http://localhost:5173');
+  const [localhostError, setLocalhostError] = useState(null);
   const logsRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [notification, setNotification] = useState(null);
+
+  // Localhost sanity mode: user supplies a localhost URL instead of OIDC auth.
+  const isLocalhost = testScenario === "Breezeai sanity localhost";
 
   const addTestLog = (text) => setTestLogs((s) => [...s, `[${new Date().toLocaleTimeString()}] ${text}`]);
 
@@ -47,9 +52,29 @@ export default function App() {
     addTestLog(`Starting ${testScenario} on ${browser} in ${headless ? 'headless' : 'headed'} mode.`);
     addTestLog('Overall status: RUNNING');
 
-    // Validate OIDC JSON (if provided)
+    // Localhost mode: validate the localhost URL instead of OIDC auth.
+    if (isLocalhost) {
+      const candidate = (localhostUrl || '').trim();
+      let validUrl = false;
+      try {
+        const u = new URL(candidate);
+        validUrl = u.protocol === 'http:' || u.protocol === 'https:';
+      } catch (e) { validUrl = false; }
+      if (!validUrl) {
+        setLocalhostError('Enter a valid localhost URL, e.g. http://localhost:5173');
+        addTestLog('Invalid localhost URL — aborting run.');
+        setTestFailed(true);
+        setRunStatus('failed');
+        setTestInProgress(false);
+        setProcessCompleted(true);
+        return;
+      }
+      setLocalhostError(null);
+    }
+
+    // Validate OIDC JSON (if provided) — only in the authenticated (non-localhost) flow.
     let parsedOidcValue;
-    if (oidcValue && oidcValue.trim() !== '') {
+    if (!isLocalhost && oidcValue && oidcValue.trim() !== '') {
       try {
         parsedOidcValue = JSON.parse(oidcValue);
         setOidcError(null);
@@ -71,13 +96,23 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          testScenario,
-          browser,
-          headless,
-          oidcKey: oidcKey || undefined,
-          oidcValue: parsedOidcValue || undefined,
-        }),
+        body: JSON.stringify(
+          isLocalhost
+            ? {
+                testScenario,
+                browser,
+                headless,
+                isLocalhost: true,
+                localhostUrl: localhostUrl.trim(),
+              }
+            : {
+                testScenario,
+                browser,
+                headless,
+                oidcKey: oidcKey || undefined,
+                oidcValue: parsedOidcValue || undefined,
+              }
+        ),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -348,6 +383,7 @@ export default function App() {
                 <label style={styles.label}>Test Scenario</label>
                 <select style={styles.select} value={testScenario} onChange={e => setTestScenario(e.target.value)} disabled={testInProgress}>
                     <option>Breezeai sanity dev</option>
+                    <option>Breezeai sanity localhost</option>
                     <option>Breezeai sanity prod</option>
                     <option>Breezeai complete regression dev</option>
                     <option>AccionConnect sanity dev</option>
@@ -375,6 +411,24 @@ export default function App() {
   </div>
 </div>
 
+            {isLocalhost && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Localhost URL</label>
+                <input
+                  style={styles.select}
+                  value={localhostUrl}
+                  onChange={e => setLocalhostUrl(e.target.value)}
+                  placeholder="http://localhost:5173"
+                  disabled={testInProgress}
+                />
+                <div style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
+                  Localhost mode runs a generated copy of the sanity suite against this URL. No authentication required.
+                </div>
+                {localhostError && <div style={{ color: '#d9534f', fontSize: 12, marginTop: 6 }}>{localhostError}</div>}
+              </div>
+            )}
+
+            {!isLocalhost && (
             <div style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12 }}>
               <div style={styles.sectionHeader}>
                 <h3 style={{ margin: 0, fontSize: 14 }}>Authentication</h3>
@@ -504,6 +558,7 @@ export default function App() {
                 </>
               )}
             </div>
+            )}
 
             <div style={{display:'flex', gap:8}}>
               <button onClick={runTest} disabled={testInProgress} style={{...styles.button, flex:1, width:120}}>
