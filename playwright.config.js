@@ -13,6 +13,12 @@ const TARGET_URL = process.env.TARGET_URL || BASE_URL;
 export default defineConfig({
   timeout: 300000, // 5 minutes - accommodate 2-3 min metrics generation
   expect: { timeout: 20000 },
+  retries: 1, // retry once on failure — gives app-error recovery a chance to reload
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['./reporter/HealingReporter.mjs'],
+  ],
   ...(isLocalhostRun ? {} : { globalSetup: "./global-setup.js" }),
   use: {
     baseURL: TARGET_URL,

@@ -1,6 +1,6 @@
-import { test, expect } from "./auth.fixture.mjs";
-import { createProject, selectProject, selectFirstListedProject, theamChange, menuItemClick } from "../Pages/dashboardPage.js";
-import { openAllCards } from "../Pages/projectPage.js";
+import { test, expect, collectPageData } from "./auth-healing.fixture.mjs";
+import { DEFAULT_BASE_URL, createProject, selectProject, selectFirstListedProject, theamChange, menuItemClick } from "../Pages/dashboardPage.js";
+import { openAllCards, uploadAndGenerateCodeOntology } from "../Pages/projectPage.js";
 import { newProjetCreation } from "../Pages/designPage.js";
 import {
   generateFunctionalMetric,
@@ -8,7 +8,7 @@ import {
   uploadDocumentwithDesignOntology,
   uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology
 } from "../Pages/knowlegeBase.js";
-import { withErrorCapture } from "./test-utils.mjs";
+import { withErrorCapture, checkAndRecoverFromAppError } from "./test-utils.mjs";
 
 let projectName = "";
 let projectId = "";
@@ -47,14 +47,22 @@ test.describe("Sanity Suite", () => {
   }
 
   test.beforeEach("Url Calling", async ({ page }) => {
-    await page.goto("https://ai.accionbreeze.com/", { waitUntil: "domcontentloaded" });
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await checkAndRecoverFromAppError(page);
+    await collectPageData(page, 'dashboard');
   });
 
   test("@sanity BreezeAI dashboard Launched", withErrorCapture(async ({ page }) => {
-    await page.goto("https://ai.accionbreeze.com/", { waitUntil: "domcontentloaded" });
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
     const title = await page.title();
     console.log("Page title after execution:", title);
-    expect(title).toMatch(/Breeze\.AI/i);
+    // Accept both prod ("Breeze.AI") and localhost ("Automation UI") titles
+    const isLocalhost = process.env.TARGET_URL && process.env.TARGET_URL.includes('localhost');
+    if (isLocalhost) {
+      expect(title.length).toBeGreaterThan(0);
+    } else {
+      expect(title).toMatch(/Breeze\.AI/i);
+    }
   }));
 
   test("@sanity BreezeAI create project", async ({ page }) => {
@@ -70,7 +78,7 @@ test.describe("Sanity Suite", () => {
     console.log("Step 1: Uploading document...");
     await uploadFirstDocumentInKnowledgeBase(page, "pdf");
 
-    await page.goto(`https://ai.accionbreeze.com/dashboard/${projectId}`);
+    await page.goto(`${DEFAULT_BASE_URL}dashboard/${projectId}`);
     await page.waitForTimeout(2000);
     
     console.log("Step 2: Generating functional metrics (this may take 2-3 minutes)...");
@@ -109,5 +117,23 @@ test.describe("Sanity Suite", () => {
   test("@sanity Generate design metrics", async ({ page }) => {
     await ensureProjectOpen(page);
     await newProjetCreation(page, "Webstie Design");
+  });
+
+  test("@sanity Generate Code Ontology", async ({ page }) => {
+    // Create a dedicated project — code ontology is independent of the functional project
+    const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
+    const codeProjectName = `CodeOntology-${currentDateTime}-Automation`;
+
+    console.log(`Creating project: ${codeProjectName}`);
+    const codeProjectId = await createProject(page, codeProjectName);
+    if (!codeProjectId) throw new Error(`Failed to create project: ${codeProjectName}`);
+    console.log(`Code ontology project ID: ${codeProjectId}`);
+
+    // Upload the pre-generated ndjson.gz of the sanity-check repo and generate the ontology
+    await uploadAndGenerateCodeOntology(
+      page,
+      codeProjectId,
+      'Sanity-check Automation Repo'
+    );
   });
 });

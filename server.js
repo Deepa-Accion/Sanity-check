@@ -82,7 +82,7 @@ app.post("/api/run-test", async (req, res) => {
       specFile,
       '--project',
       browser,
-      '--reporter=json,html'
+      '--workers=1'
     ];
   } else {
     const tag = testType || (normalizedScenario.includes('regression') ? 'regression' : 'sanity');
@@ -94,7 +94,7 @@ app.post("/api/run-test", async (req, res) => {
       `@${tag}`,
       '--project',
       browser,
-      '--reporter=json,html'
+      '--workers=1'
     ];
   }
 
@@ -148,9 +148,9 @@ app.post("/api/run-test", async (req, res) => {
   child.stderr.on("data", (data) => pushLogs(data, "stderr"));
 
   const timeout = setTimeout(() => {
-    logs.push("Run timed out after 5 minutes. Killing process.");
+    logs.push("Run timed out after 45 minutes. Killing process.");
     killProcessTree(child);
-  }, 5 * 60 * 1000);
+  }, 45 * 60 * 1000);
 
   child.on("close", (code) => {
     clearTimeout(timeout);
@@ -167,9 +167,23 @@ app.post("/api/run-test", async (req, res) => {
       logs.push(`HTML report generated at ${reportPath}`);
     }
 
-    // Attempt to produce a custom HTML report by parsing the JSON reporter output (best-effort)
+    // Pick up the latest file written by HealingReporter (custom-reports/report-*.html)
     let customReportAvailable = false;
-    try {
+    const customReportsDir = path.join(process.cwd(), 'custom-reports');
+    if (fs.existsSync(customReportsDir)) {
+      const htmlFiles = fs.readdirSync(customReportsDir)
+        .filter(f => f.startsWith('report-') && f.endsWith('.html'))
+        .map(f => ({ name: f, mtime: fs.statSync(path.join(customReportsDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      if (htmlFiles.length > 0) {
+        lastCustomReportPath = path.join(customReportsDir, htmlFiles[0].name);
+        customReportAvailable = true;
+        logs.push(`Custom report available at ${lastCustomReportPath}`);
+      }
+    }
+
+    // Legacy: also attempt to produce a custom report by parsing the JSON reporter output if no HealingReporter output found
+    if (!customReportAvailable) try {
       const tryParseJsonFromStdout = (buf) => {
         // Search for candidate JSON substrings and return the first successfully parsed object that looks like Playwright report
         const candidates = [];
@@ -415,8 +429,8 @@ app.post("/api/run-test", async (req, res) => {
       }
     } catch (e) {
       logs.push(`Failed to parse JSON reporter output: ${e.message}`);
-    }
-    const reportAvailable = Boolean(success && reportExists);
+    } // end legacy JSON parsing
+    const reportAvailable = Boolean(reportExists);
 
     res.status(success ? 200 : 500).json({ success, logs, reportAvailable, customReportAvailable, customReportPath: lastCustomReportPath });
   });

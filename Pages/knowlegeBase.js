@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { checkAndRecoverFromAppError } from "../tests/test-utils.mjs";
 
 // Get __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -307,6 +308,9 @@ export async function uploadDocumentwithDesignOntology(page, fileType = 'pdf') {
 
 
 export async function selectKnowleedgeBaseTab(page) {
+  // Heal any SPA chunk-reload error before attempting to find tabs
+  await checkAndRecoverFromAppError(page);
+
   let kbBtn = page.locator("li.relative > button[aria-label='Knowledge Base']");
   let found = await kbBtn.isVisible({ timeout: 10000 }).catch(() => false);
   

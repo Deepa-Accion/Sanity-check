@@ -204,17 +204,37 @@ export async function menuItemClick(page) {
 }
 
 export async function theamChange(page) {
-   await page.getByRole('menuitem', { name: 'Themes' }).press('Enter')
-  const themeItems = page.locator('div[role="menuitem"]');
-  const selectedTheme = themeItems.filter({
-    has: page.locator('span.text-primary')
-  });
+  const themesItem = page.getByRole('menuitem', { name: /^themes$/i });
+  await expect(themesItem).toBeVisible({ timeout: 10000 });
+  await themesItem.click();
+  await page.waitForTimeout(400);
+
+  // Read currently selected theme (has the tick marker span.text-primary)
+  const selectedTheme = page.locator('[role="menuitem"]').filter({ has: page.locator('span.text-primary') });
+  await expect(selectedTheme.first()).toBeVisible({ timeout: 8000 });
   const selectedThemeName = (await selectedTheme.locator('span').first().innerText()).trim();
   console.log(`Currently selected theme: ${selectedThemeName}`);
-  const newTheme = themeItems.filter({
-    hasNotText: selectedThemeName
-  }).first();
+
+  // The menu is flat: [Themes trigger, Light✓, Premium, Logout] all share the same parent.
+  // Use evaluate to skip non-theme items (trigger + Logout) and find an unselected theme.
+  const newThemeName = await page.evaluate((selected) => {
+    const items = [...document.querySelectorAll('[role="menuitem"]')];
+    const candidate = items.find(el => {
+      const text = el.textContent?.trim() || '';
+      if (text === selected) return false;
+      if (/^(themes|logout|sign\s+out)$/i.test(text)) return false;
+      if (el.querySelector('span.text-primary')) return false;
+      return true;
+    });
+    return candidate?.textContent?.trim() ?? null;
+  }, selectedThemeName);
+
+  if (!newThemeName) throw new Error(`No alternative theme found (current: ${selectedThemeName})`);
+
+  const newTheme = page.getByRole('menuitem', { name: newThemeName, exact: true });
+  await expect(newTheme).toBeVisible({ timeout: 5000 });
   await newTheme.click();
+  console.log(`Theme changed: "${selectedThemeName}" → "${newThemeName}"`);
 }
 
 // ---------------------------------------------------------------------------

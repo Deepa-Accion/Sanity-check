@@ -2,3 +2,24 @@
 # Generated localhost spec copies (created at runtime by server.js)
 tests/sanity.localhost.spec.mjs
 tests/completeregression.localhost.spec.mjs
+
+# Test output — generated on every run, not source files
+custom-reports/
+PageData/
+logs/
+playwright-report/
+test-results/
+
+# Temp / backup files
+*.bak
+*.bak.*
+tmp-*.png
+tmp-*.mjs
+
+# MCP browser logs
+.playwright-mcp/
+
+# Auth state (contains tokens)
+auth.json
+session-auth.json
+
