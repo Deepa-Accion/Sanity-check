@@ -1,103 +1,67 @@
-import fs from "fs";
-import { createInterface } from "readline/promises";
-import { stdin as input, stdout as output } from "process";
+import { chromium } from "@playwright/test";
+import path from "path";
+import { fileURLToPath } from "url";
 
-function hasUsableOidcSession(parsed) {
-  return Boolean(
-    parsed &&
-    parsed.key &&
-    parsed.value &&
-    typeof parsed.value === "object" &&
-    (parsed.value.access_token || parsed.value.id_token || parsed.value.refresh_token)
-  );
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-async function readJsonIfPresent(path) {
-  try {
-    const raw = await fs.promises.readFile(path, "utf-8");
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
-}
+// Target URL — overridable via env (e.g. for prod runs); defaults to BreezeAI dev
+const TARGET_URL = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
+
+// Credentials — overridable via env so CI can inject secrets without code changes
+const USERNAME = process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
+const PASSWORD = process.env.BREEZE_PASSWORD || "D#K8AWj3A";
+
+const AUTH_FILE = path.join(__dirname, "auth.json");
 
 export default async function globalSetup() {
-  console.log("[global-setup] Starting authentication setup...");
+  console.log("[global-setup] Starting browser-based login to", TARGET_URL);
 
-  const existingSessionAuth = await readJsonIfPresent("session-auth.json");
-  const existingStorageState = await readJsonIfPresent("auth.json");
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+  const page = await context.newPage();
 
-  const defaultOidcKey = existingSessionAuth?.key || "oidc.user:https://login-new.accionbreeze.com/realms/accionlabswebsite:isometric";
-  let defaultOidcValue = hasUsableOidcSession(existingSessionAuth)
-    ? existingSessionAuth.value
-    : {
-        id_token: "",
-        session_state: "",
-        access_token: "",
-        refresh_token: "",
-        token_type: "Bearer",
-        scope: "openid profile email",
-        profile: {},
-        expires_at: 0
-      };
+  try {
+    // Navigate to the app root — redirects to /login when not authenticated
+    await page.goto(TARGET_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
 
-  if (process.env.DEFAULT_OIDC_VALUE) {
-    try {
-      defaultOidcValue = JSON.parse(process.env.DEFAULT_OIDC_VALUE);
-    } catch (e) {
-      // Ignore invalid fallback JSON and keep the default structure.
+    if (page.url().includes("/login")) {
+      console.log("[global-setup] Redirected to login — performing login flow...");
+
+      // Click "Sign in with Breeze AI" to reach the Keycloak credential form
+      await page
+        .locator('button:has-text("Sign in with Breeze AI"), a:has-text("Sign in with Breeze AI")')
+        .click({ timeout: 15000 });
+
+      // Wait for the Keycloak login page to load
+      await page.waitForURL(/login-new\.accionbreeze\.com/, { timeout: 15000 });
+
+      // Fill in credentials
+      await page.fill("#username, input[name='username']", USERNAME);
+      await page.fill("#password, input[name='password']", PASSWORD);
+
+      // Submit — Keycloak uses id="kc-login" or button[name="login"]
+      await page.click("#kc-login, button[name='login'], button[type='submit']");
+
+      // Wait for OIDC callback and redirect back to the app
+      await page.waitForURL(/ai\.accionbreeze\.com/, { timeout: 30000 });
+
+      // Allow the OIDC callback + React app initialisation to settle
+      await page.waitForTimeout(3000);
+
+      console.log("[global-setup] Login successful — landed at:", page.url());
+    } else {
+      console.log("[global-setup] Already authenticated at", page.url());
     }
+
+    // Persist the full browser state (cookies + localStorage + sessionStorage)
+    // so every test starts already logged in via storageState
+    await context.storageState({ path: AUTH_FILE });
+    console.log("[global-setup] auth.json saved, setup complete.");
+  } catch (err) {
+    console.error("[global-setup] Login failed:", err.message);
+    throw err;
+  } finally {
+    await browser.close();
   }
-
-  let oidcKey = process.env.OIDC_KEY ?? defaultOidcKey;
-  let oidcValue = process.env.OIDC_VALUE ? defaultOidcValue : defaultOidcValue;
-
-  if (process.env.OIDC_VALUE) {
-    try {
-      oidcValue = JSON.parse(process.env.OIDC_VALUE);
-    } catch (e) {
-      console.warn("[global-setup] Failed to parse OIDC_VALUE env var as JSON. Using default OIDC value.");
-      oidcValue = defaultOidcValue;
-    }
-  } else if (!hasUsableOidcSession(existingSessionAuth) && input && input.isTTY) {
-    try {
-      const rl = createInterface({ input, output });
-      const keyAnswer = (await rl.question(`OIDC Key (press Enter to accept default: ${defaultOidcKey}): `)).trim();
-      if (keyAnswer) {
-        oidcKey = keyAnswer;
-      }
-
-      const valueAnswer = (await rl.question("OIDC Value (paste JSON or press Enter to accept default): ")).trim();
-      if (valueAnswer) {
-        try {
-          oidcValue = JSON.parse(valueAnswer);
-        } catch (e) {
-          console.warn("[global-setup] Provided OIDC JSON invalid, using default.");
-          oidcValue = defaultOidcValue;
-        }
-      }
-
-      rl.close();
-    } catch (e) {
-      // If interactive prompt fails, fall back to existing/default values silently.
-    }
-  }
-
-  if (!existingStorageState || process.env.OIDC_VALUE || process.env.OIDC_KEY) {
-    await fs.promises.writeFile(
-      "auth.json",
-      JSON.stringify(existingStorageState ?? { cookies: [], origins: [] }, null, 2),
-      "utf-8"
-    );
-  }
-
-  if (!hasUsableOidcSession(existingSessionAuth) || process.env.OIDC_VALUE || process.env.OIDC_KEY) {
-    await fs.promises.writeFile(
-      "session-auth.json",
-      JSON.stringify({ key: oidcKey, value: oidcValue }),
-      "utf-8"
-    );
-  }
-
-  console.log("[global-setup] auth.json created, setup complete.");
 }

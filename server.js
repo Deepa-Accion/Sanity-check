@@ -21,7 +21,7 @@ app.post("/api/run-test", async (req, res) => {
     return res.status(409).json({ error: "A test run is already in progress." });
   }
 
-  const { testType, testScenario, browser, headless, oidcKey, oidcValue, isLocalhost, localhostUrl } = req.body;
+  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl } = req.body;
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -98,29 +98,15 @@ app.post("/api/run-test", async (req, res) => {
     ];
   }
 
-  // Prepare environment for child process and inject OIDC values if provided
+  // Prepare environment for child process
   const childEnv = { ...process.env };
   if (localhostMode && targetUrl) {
     // Propagate the target URL so the page objects (and playwright.config baseURL)
     // navigate to localhost, and flag localhost so OIDC auth/global-setup is skipped.
     childEnv.TARGET_URL = targetUrl;
     childEnv.LOCALHOST_RUN = 'true';
-    logs.push(`Localhost mode: targeting ${targetUrl} (OIDC authentication skipped).`);
+    logs.push(`Localhost mode: targeting ${targetUrl} (authentication skipped).`);
   }
-  if (oidcKey) {
-    childEnv.OIDC_KEY = oidcKey;
-    logs.push('OIDC key provided and forwarded to test runner.');
-  }
-  if (oidcValue) {
-    try {
-      // Ensure we forward a JSON string
-      childEnv.OIDC_VALUE = typeof oidcValue === 'string' ? oidcValue : JSON.stringify(oidcValue);
-      logs.push('OIDC value provided and forwarded to test runner.');
-    } catch (e) {
-      logs.push('Failed to stringify OIDC value — it will not be forwarded.');
-    }
-  }
-
   if (!headless) {
     args.push("--headed");
   }
@@ -442,47 +428,6 @@ app.post("/api/run-test", async (req, res) => {
     logs.push(`Failed to start Playwright: ${err.message}`);
     res.status(500).json({ success: false, logs, error: err.message, reportAvailable: false });
   });
-});
-
-// Endpoint: persist provided OIDC key/value into global-setup.js (with backup)
-app.post('/api/save-oidc', async (req, res) => {
-  try {
-    const { oidcKey, oidcValue } = req.body;
-    if (!oidcKey || !oidcValue) return res.status(400).json({ error: 'Missing oidcKey or oidcValue in request body.' });
-
-    // Ensure the value is valid JSON/object
-    let valueObj = oidcValue;
-    if (typeof oidcValue === 'string') {
-      try {
-        valueObj = JSON.parse(oidcValue);
-      } catch (e) {
-        return res.status(400).json({ error: 'OIDC value must be valid JSON.' });
-      }
-    }
-
-    const filePath = path.join(process.cwd(), 'global-setup.js');
-    if (!fs.existsSync(filePath)) return res.status(500).json({ error: 'global-setup.js not found on server.' });
-
-    // Make a timestamped backup before modifying
-    const backupPath = `${filePath}.bak.${Date.now()}`;
-    fs.copyFileSync(filePath, backupPath);
-
-    let content = fs.readFileSync(filePath, 'utf8');
-
-    // Replace defaultOidcKey line
-    content = content.replace(/(const\s+defaultOidcKey\s*=\s*)(["'`])[\s\S]*?\2;/, `$1"${oidcKey}";`);
-
-    // Replace defaultOidcValue object — produce pretty-printed JSON
-    const valueString = JSON.stringify(valueObj, null, 2);
-    // Replace the entire object literal following `const defaultOidcValue =`
-    content = content.replace(/(const\s+defaultOidcValue\s*=\s*)\{[\s\S]*?\n\s*\}/, `$1${valueString}`);
-
-    fs.writeFileSync(filePath, content, 'utf8');
-
-    return res.json({ success: true, backup: backupPath });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
 });
 
 app.post('/api/stop-test', (req, res) => {
