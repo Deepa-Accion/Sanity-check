@@ -61,6 +61,30 @@ export async function projectHome(page, projectId = null) {
   await checkAndRecoverFromAppError(page);
 }
 
+export async function downloadArtifacts(page, projectId) {
+  await projectHome(page, projectId);
+
+  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
+  await primaryNavigation
+    .getByRole("button", { name: "Artifacts", exact: true })
+    .click();
+
+  await page.getByRole('button', { name: 'Refresh artifacts' }).click();
+    
+  await page
+    .getByRole("button", { name: "Functional Documentation", exact: true })
+    .click(); 
+  
+  const plainHtmlButton = page.getByRole("button", {
+  name: "Plain HTML Interactive single"
+    }).first();  
+  
+  await expect(plainHtmlButton).toBeVisible({ timeout: 30000 });
+  await expect(plainHtmlButton).toBeEnabled({ timeout: 30000 });
+  await plainHtmlButton.click();  
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 15000 });
+}
+
 export async function knowlegeGraphGeneration(page) {
   await openCard(
     page,
