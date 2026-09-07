@@ -1,0 +1,23 @@
+# Generated test output
+logs/
+playwright-report/
+test-results/
+frontend/test-results/
+custom-reports/
+reporter/
+
+# Page snapshot data (JSON, not source)
+PageData/
+
+# Claude / session / credentials
+.claude/
+.playwright-mcp/
+auth.json
+session-auth.json
+.breeze.json
+
+# Documents (PDFs, images)
+documents/
+
+# Backup files
+*.bak.*

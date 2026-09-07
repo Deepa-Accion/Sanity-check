@@ -215,6 +215,135 @@ export async function waitForChatResponse(page, { timeout = 120000, minResponses
 }
 
 /**
+ * Open the New Ontology dialog and connect a GitLab repository by URL.
+ * Handles public repos (no PAT) and private repos (PAT required).
+ *
+ * BREEZEAI-866 — GitLab repository support
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} projectId
+ * @param {{ repoUrl: string, name: string, isPrivate?: boolean, pat?: string }} opts
+ * @returns {Promise<{ success: boolean, name: string }>}
+ */
+export async function connectGitLabRepo(page, projectId, { repoUrl, name, isPrivate = false, pat = "" }) {
+  const baseUrl = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
+
+  console.log(`[connectGitLabRepo] Navigating to /code-ontology/${projectId}`);
+  await page.goto(`${baseUrl}code-ontology/${projectId}`, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(3000);
+
+  const newBtn = page.locator("button").filter({ hasText: /New\s+Ontology/i }).first();
+  await expect(newBtn).toBeVisible({ timeout: 15000 });
+  await newBtn.click();
+  await page.waitForTimeout(2000);
+
+  // Switch to the GitLab / URL tab if one exists
+  const gitlabTab = page.locator("button, [role='tab'], label").filter({ hasText: /^GitLab$/i }).first();
+  const urlTab = page.locator("button, [role='tab']").filter({ hasText: /Repository\s*URL|Git\s*URL/i }).first();
+
+  const gitlabVisible = await gitlabTab.isVisible({ timeout: 3000 }).catch(() => false);
+  const urlTabVisible = await urlTab.isVisible({ timeout: 3000 }).catch(() => false);
+
+  if (gitlabVisible) {
+    await gitlabTab.click();
+    await page.waitForTimeout(1000);
+  } else if (urlTabVisible) {
+    await urlTab.click();
+    await page.waitForTimeout(1000);
+  }
+
+  // Fill in the ontology / repo name
+  const nameInput = page
+    .locator('input[placeholder*="Backend API" i], input[placeholder*="ontology name" i], input[placeholder*="name" i]')
+    .first();
+  const nameVisible = await nameInput.isVisible({ timeout: 5000 }).catch(() => false);
+  if (nameVisible) {
+    await nameInput.fill(name);
+    console.log(`[connectGitLabRepo] Set name: "${name}"`);
+  }
+
+  // Fill in the repo URL
+  const urlInput = page
+    .locator(
+      'input[placeholder*="gitlab" i], input[placeholder*="repo url" i], ' +
+      'input[placeholder*="repository url" i], input[placeholder*="clone url" i], ' +
+      'input[placeholder*="git url" i], input[placeholder*="url" i]'
+    )
+    .first();
+  await expect(urlInput).toBeVisible({ timeout: 8000 });
+  await urlInput.fill(repoUrl);
+  console.log(`[connectGitLabRepo] Entered repo URL: ${repoUrl}`);
+
+  // Fill in PAT for private repos
+  if (isPrivate && pat) {
+    const patInput = page
+      .locator('input[placeholder*="token" i], input[placeholder*="PAT" i], input[placeholder*="access token" i], input[type="password"]')
+      .first();
+    const patVisible = await patInput.isVisible({ timeout: 3000 }).catch(() => false);
+    if (patVisible) {
+      await patInput.fill(pat);
+      console.log("[connectGitLabRepo] PAT entered for private repo");
+    } else {
+      console.warn("[connectGitLabRepo] PAT input not found — UI may not require it yet");
+    }
+  }
+
+  // Submit the dialog
+  const saveBtn = page
+    .locator("button")
+    .filter({ hasText: /^Save$|^Connect$|^Submit$|^Add Repository$/i })
+    .first();
+  await expect(saveBtn).toBeVisible({ timeout: 5000 });
+  await saveBtn.click();
+  console.log("[connectGitLabRepo] Submitted — waiting for repo entry...");
+  await page.waitForTimeout(5000);
+
+  // Confirm the entry appeared in the list
+  const entry = page.locator("div, li, tr").filter({ hasText: name }).first();
+  const success = await entry.isVisible({ timeout: 20000 }).catch(() => false);
+
+  console.log(`[connectGitLabRepo] Entry "${name}" visible: ${success}`);
+  return { success, name };
+}
+
+/**
+ * Poll the code ontology list until the named entry's row text contains
+ * one of the accepted status strings, then return the matched status.
+ * Reloads the page between polls to get fresh state from the backend.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} entryName
+ * @param {{ acceptedStatuses?: string[], timeout?: number }} opts
+ * @returns {Promise<string|null>} matched status, or null on timeout
+ */
+export async function waitForOntologyStatus(page, entryName, { acceptedStatuses = [], timeout = 60000 } = {}) {
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    const row = page.locator("div, li, tr").filter({ hasText: entryName }).first();
+    const rowVisible = await row.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (rowVisible) {
+      const rowText = await row.innerText().catch(() => "");
+      for (const status of acceptedStatuses) {
+        if (rowText.toLowerCase().includes(status.toLowerCase())) {
+          console.log(`[waitForOntologyStatus] "${entryName}" → status: ${status}`);
+          return status;
+        }
+      }
+      console.log(`[waitForOntologyStatus] Current row text: ${rowText.slice(0, 120)} — polling...`);
+    }
+
+    await page.waitForTimeout(4000);
+    await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(2000);
+  }
+
+  console.warn(`[waitForOntologyStatus] Timed out after ${timeout}ms for "${entryName}"`);
+  return null;
+}
+
+/**
  * Navigate to the Code Ontology page for a project, create a new ontology entry
  * by uploading a pre-generated ndjson.gz dependency-tree file, then trigger
  * generation and wait for the entry to appear in the list.

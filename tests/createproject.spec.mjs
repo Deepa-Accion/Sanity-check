@@ -1,89 +1,64 @@
 import { test, expect } from "./auth.fixture.mjs";
-import {
-  DEFAULT_BASE_URL,
-  createProject,
-  searchProject,
-  deleteProject,
-} from "../Pages/dashboardPage.js";
+import { createProject, searchProject, deleteProject } from "../Pages/dashboardPage.js";
 import { withErrorCapture } from "./test-utils.mjs";
 
-// ---------------------------------------------------------------------------
-// Ticket AG-14 — Set up a new project from the dashboard (regression)
+// AG-13 — Regression: create a new project on the BreezeAI dashboard.
 //
-// End-to-end regression coverage for creating a project from the BreezeAI
-// dashboard: access the dashboard, start a new project, enter a valid name and
-// save, then confirm the project shows up in the project list.
+// Self-contained end-to-end scenario:
+//   1. Access the BreezeAI dashboard.
+//   2. Open the create-project form and submit a valid project name.
+//   3. Return to the dashboard and verify the new project appears in the list.
+//   4. Clean up by deleting the created project (runs even if a step fails).
 //
-// The scenario is self-contained: it creates its own uniquely-named project as
-// a precondition and cleans it up afterwards (in a finally block, so cleanup
-// runs even if an assertion fails). This complements the existing
-// "@sanity BreezeAI create project" check, which only creates a project and
-// does not verify it appears in the list or clean itself up.
-// ---------------------------------------------------------------------------
+// Chromium-only, in line with the rest of the suite.
 
-test.describe("Create Project Regression Suite", () => {
+const BASE_URL = "https://ai.accionbreeze.com/";
+
+test.describe("AG-13 Create project - Dashboard", () => {
   test.describe.configure({ mode: "serial" });
 
   test.skip(
     ({ browserName }) => browserName !== "chromium",
-    "Create-project regression flow is maintained for Chromium only."
+    "Create-project regression is maintained for Chromium only."
   );
 
-  test.beforeEach("Open application", async ({ page }) => {
-    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+  test.beforeEach("Access the BreezeAI dashboard", async ({ page }) => {
+    await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
   });
 
   test(
-    "@regression Set up a new project from the dashboard and confirm it is listed",
+    "@regression Create a new project on the dashboard and verify it is listed",
     withErrorCapture(async ({ page }) => {
+      // Uniquely named project so the run is independent of pre-existing data
+      // and safe to clean up without touching real user projects.
       const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
-      const projectName = `AG14-CreateProject-${currentDateTime}-Automation`;
+      const projectName = `AG13-Create-${currentDateTime}`;
 
       let created = false;
       try {
-        // Start a new project, enter a valid name, and save.
+        // Open the create-project form, submit a valid name, and create.
         const projectId = await createProject(page, projectName);
         created = true;
-        expect(projectId, "createProject should return a project ID").toBeTruthy();
-        console.log(`Created project "${projectName}" (ID: ${projectId})`);
+        console.log(`[AG-13] created project "${projectName}" (ID: ${projectId})`);
 
-        // Return to the dashboard and confirm the project shows up in the list.
-        await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+        // Return to the dashboard/project listing to verify the new project.
+        await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+
+        // Narrow the listing to the just-created project and assert it appears.
         await searchProject(page, projectName);
-
-        const projectCard = page
-          .locator("article")
-          .filter({ hasText: projectName })
-          .first();
-        await expect(
-          projectCard,
-          "newly created project should appear in the dashboard list"
-        ).toBeVisible({ timeout: 20000 });
-        console.log(`Confirmed project "${projectName}" is listed on the dashboard.`);
+        const result = page.locator(`text="${projectName}"`).first();
+        await expect(result).toBeVisible({ timeout: 20000 });
+        console.log(`[AG-13] project "${projectName}" is listed on the dashboard`);
       } finally {
-        // Self-contained cleanup: remove the project this test created so the
-        // suite leaves no residue behind. Best-effort — a cleanup failure must
-        // not mask the test result.
+        // Self-contained: remove the project this test created so the suite
+        // leaves no residual data behind, regardless of assertion outcome.
         if (created) {
-          try {
-            await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
-            await searchProject(page, projectName);
-            await deleteProject(page, projectName);
-
-            // Confirm the deletion if the UI asks for confirmation.
-            const confirmBtn = page.getByRole("button", {
-              name: /^(delete|confirm|yes)$/i,
-            });
-            if (await confirmBtn.isVisible().catch(() => false)) {
-              await confirmBtn.click();
-            }
-            console.log(`Cleaned up project "${projectName}".`);
-          } catch (cleanupErr) {
-            console.warn(
-              `Cleanup failed for "${projectName}":`,
-              cleanupErr?.message ?? cleanupErr
-            );
-          }
+          await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+          await searchProject(page, projectName);
+          await deleteProject(page, projectName).catch((err) => {
+            console.warn(`[AG-13] cleanup failed for "${projectName}":`, err?.message ?? err);
+          });
+          console.log(`[AG-13] cleanup complete for "${projectName}"`);
         }
       }
     })

@@ -1,0 +1,239 @@
+{
+  "payload": {
+    "personas": [
+      {
+        "persona": "System",
+        "description": null,
+        "outcomes": [
+          {
+            "outcome": "Manage OIDC Session Configuration",
+            "description": "Persist OIDC authentication credentials into the global Playwright test setup file.",
+            "scenarios": [
+              {
+                "scenario": "Persist OIDC credentials to global-setup.js",
+                "description": "server.js POST /api/save-oidc validates the request body (oidcKey: string required; oidcValue: string or object required; if string it must parse as valid JSON), verifies global-setup.js exists at process.cwd(), creates a timestamped backup (global-setup.js.bak.<Date.now()>), patches the file replacing const defaultOidcKey and const defaultOidcValue via regex, then writes updated content to disk. Returns {success:true, backup:backupPath} on success; HTTP 400 on missing or invalid inputs; HTTP 500 if global-setup.js is not found or an unexpected error occurs.",
+                "citations": [
+                  {
+                    "type": "code",
+                    "name": "server.js",
+                    "reference": "Sanity-check/server.js"
+                  }
+                ],
+                "steps": [
+                  {
+                    "step": "Receive OIDC save request",
+                    "actions": [
+                      {
+                        "action": "Receive POST /api/save-oidc",
+                        "description": "Accepts JSON body parsed by express.json() middleware. No authentication guard. Body: { oidcKey: string, oidcValue: string | object }.",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/save-oidc",
+                            "request": "{ oidcKey: string, oidcValue: string | object }",
+                            "response": "{ success: true, backup: string } | { error: string }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Validate request inputs",
+                    "actions": [
+                      {
+                        "action": "Validate oidcKey presence",
+                        "description": "oidcKey: string; required; Boolean coercion check (!oidcKey); rejects HTTP 400 { error: 'Missing oidcKey or oidcValue in request body.' } if absent or empty.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Validate oidcValue presence and JSON format",
+                        "description": "oidcValue: string or object; required; Boolean coercion check (!oidcValue); rejects HTTP 400 { error: 'Missing oidcKey or oidcValue in request body.' } if absent; if typeof oidcValue === string, attempts JSON.parse(oidcValue) storing result as valueObj; rejects HTTP 400 { error: 'OIDC value must be valid JSON.' } on SyntaxError.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Verify global-setup.js availability",
+                    "actions": [
+                      {
+                        "action": "Check global-setup.js exists on disk",
+                        "description": "Resolves filePath = path.join(process.cwd(), global-setup.js); calls fs.existsSync(filePath); rejects HTTP 500 { error: global-setup.js not found on server. } if file is absent.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Backup and patch global-setup.js",
+                    "actions": [
+                      {
+                        "action": "Create timestamped backup of global-setup.js",
+                        "description": "Computes backupPath = filePath + .bak. + Date.now(); calls fs.copyFileSync(filePath, backupPath) before modification. Pattern: global-setup.js.bak.<epoch-ms>.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Patch defaultOidcKey constant in global-setup.js",
+                        "description": "Reads file via fs.readFileSync(filePath, utf8); applies regex to match const defaultOidcKey = <quoted-string>; and replaces with const defaultOidcKey = oidcKey;. Targets defaultOidcKey assignment in global-setup.js.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          },
+                          {
+                            "type": "code",
+                            "name": "global-setup.js",
+                            "reference": "Sanity-check/global-setup.js"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Patch defaultOidcValue object in global-setup.js",
+                        "description": "Applies regex to match const defaultOidcValue = { ... } and replaces the entire object literal with JSON.stringify(valueObj, null, 2) (pretty-printed); writes updated content via fs.writeFileSync(filePath, content, utf8).",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          },
+                          {
+                            "type": "code",
+                            "name": "global-setup.js",
+                            "reference": "Sanity-check/global-setup.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Return response",
+                    "actions": [
+                      {
+                        "action": "Return success response with backup path",
+                        "description": "Returns HTTP 200 JSON { success: true, backup: backupPath }. On unhandled exception in outer try-catch returns HTTP 500 { error: e.message }.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "audit": {
+    "entryPoint": "POST /api/save-oidc",
+    "persona": "System",
+    "filesRead": [
+      "Sanity-check/server.js",
+      "Sanity-check/global-setup.js"
+    ],
+    "skippedComponents": [],
+    "skippedDependencies": [
+      {
+        "file": "express, cors, path, fs",
+        "reason": "Standard Node.js built-ins and npm middleware; no custom logic to read."
+      }
+    ],
+    "sideEffects": [
+      {
+        "kind": "file",
+        "identifier": "fs.copyFileSync -> global-setup.js.bak.<epoch-ms>",
+        "matchedToAction": true
+      },
+      {
+        "kind": "file",
+        "identifier": "fs.readFileSync -> global-setup.js",
+        "matchedToAction": true
+      },
+      {
+        "kind": "file",
+        "identifier": "fs.writeFileSync -> global-setup.js",
+        "matchedToAction": true
+      }
+    ],
+    "branchesAndErrors": [
+      {
+        "what": "Missing oidcKey or oidcValue",
+        "code": "HTTP 400",
+        "handledAs": "Validate oidcKey presence action"
+      },
+      {
+        "what": "oidcValue string not valid JSON",
+        "code": "HTTP 400",
+        "handledAs": "Validate oidcValue presence and JSON format action"
+      },
+      {
+        "what": "global-setup.js not found",
+        "code": "HTTP 500",
+        "handledAs": "Check global-setup.js exists on disk action"
+      },
+      {
+        "what": "Unhandled exception",
+        "code": "HTTP 500",
+        "handledAs": "Return success response with backup path action (catch block)"
+      }
+    ],
+    "codeGraphSearchAvailable": true,
+    "validatorsRun": true,
+    "codeGraphSearches": [],
+    "warnings": [],
+    "stats": {
+      "scenarios": 1,
+      "steps": 5,
+      "actions": 7,
+      "actionsWithApis": 1,
+      "fieldsEnumerated": 2,
+      "sideEffectsLogged": 3,
+      "sideEffectsMatched": 3,
+      "filesRead": 2,
+      "codeGraphSearchCount": 0
+    }
+  }
+}

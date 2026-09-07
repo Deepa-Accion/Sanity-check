@@ -23,3 +23,6 @@ tmp-*.mjs
 auth.json
 session-auth.json
 
+# Breeze config (contains API key)
+.breeze.json
+

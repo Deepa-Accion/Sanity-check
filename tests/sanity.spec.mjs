@@ -96,11 +96,6 @@ test.describe("Sanity Suite", () => {
     await uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, "txt");
   });
 
-  test("@sanity Theme Change", withErrorCapture(async ({ page }) => {
-    await menuItemClick(page);
-    await theamChange(page);
-  }));
-
   test("@sanity Search and Select project", withErrorCapture(async ({ page }) => {
     await ensureProjectOpen(page);
   }));

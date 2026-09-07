@@ -1,0 +1,761 @@
+{
+  "payload": {
+    "personas": [
+      {
+        "persona": "QA Engineer",
+        "description": null,
+        "outcomes": [
+          {
+            "outcome": "Execute and Monitor Automated Test Runs",
+            "description": "Configure test scenarios, browsers, authentication, and execution mode, then launch and monitor Playwright test runs. Includes stopping runs mid-execution and recovering from stale run state.",
+            "scenarios": [
+              {
+                "scenario": "Launch an authenticated test run",
+                "description": "QA Engineer selects a non-localhost test scenario, chooses a browser and headless preference, optionally provides OIDC session credentials, and submits the run to the server. The dashboard streams live logs, shows a status badge, and polls the server for completion to determine report availability.",
+                "citations": [
+                  {
+                    "type": "code",
+                    "name": "App.jsx",
+                    "reference": "Sanity-check/frontend/src/App.jsx"
+                  }
+                ],
+                "steps": [
+                  {
+                    "step": "Specify test configuration",
+                    "actions": [
+                      {
+                        "action": "Select the test scenario",
+                        "description": "label: Test Scenario; type: enum; required: true; default: Breezeai sanity dev; options: Breezeai sanity dev, Breezeai sanity prod, Breezeai complete regression dev, AccionConnect sanity dev, AccionConnect sanity prod; disabled while a test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Select the browser",
+                        "description": "label: Browser; type: enum; required: true; default: Chromium; options: Chromium, Firefox, WebKit; disabled while a test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Indicate whether to run in headless mode",
+                        "description": "label: Run in headless mode; type: boolean; required: false; default: false; when false the browser window is visible to the user; disabled while a test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Provide OIDC authentication credentials",
+                    "actions": [
+                      {
+                        "action": "Indicate whether to show the authentication section",
+                        "description": "Show/Hide control next to the Authentication section header; type: boolean; default: shown; sets the authentication section visibility; when hidden OIDC fields are not shown but their state is preserved",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Enter the OIDC Key",
+                        "description": "label: OIDC Key; type: text; required: false; placeholder: oidc.user:...; format: OIDC session key found in browser DevTools > Application > Session storage; disabled when authentication section is hidden or test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Provide the OIDC Value",
+                        "description": "label: OIDC Value (JSON); type: JSON text area; required: false; placeholder: {id_token: ...}; validation: must be valid JSON if provided; error: Invalid JSON for OIDC value. Please fix it before running the test.; disabled when authentication section is hidden or test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Indicate whether to mask the OIDC value",
+                        "description": "label: Mask OIDC value; type: boolean; required: false; default: false; when true the OIDC Value text area is replaced with a bullet-character placeholder and a Reveal control appears to restore the editable view; disabled when authentication section is hidden",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Submit the test run",
+                    "actions": [
+                      {
+                        "action": "Submit the test run to the server",
+                        "description": "Triggers POST /api/run-test with testScenario, browser, headless, oidcKey (optional), oidcValue as parsed JSON object (optional). Validates OIDC JSON before calling the endpoint; aborts with an error log entry if JSON is invalid. Control is disabled while a test is already in progress.",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/run-test",
+                            "request": "{ testScenario: string, browser: string, headless: boolean, oidcKey?: string, oidcValue?: object }",
+                            "response": "{ success: boolean, logs: string[], reportAvailable: boolean, customReportAvailable: boolean, customReportPath: string|null, error?: string }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Monitor live test execution",
+                    "actions": [
+                      {
+                        "action": "Observe the run status indicator",
+                        "description": "Status badge displayed in the Live Test Logs header; values: IDLE (gray), RUNNING (amber), PASSED (green), FAILED (red), STOPPED (red)",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Review the active test context summary",
+                        "description": "Displays the selected scenario name, browser name, and headless/headed mode as a summary line below the Live Test Logs header",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Review the live log entries as they appear",
+                        "description": "Log display streams timestamped entries from the server response; auto-scrolls to the most recent entry; shows Running — logs will appear here... while in progress, or No test logs yet. Configure and run a test to begin. when idle",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Poll the server for current run status",
+                        "description": "Automatic background request every 3 seconds while testInProgress is true; updates customReportAvailable and resets the run state when the server signals completion (testRunInProgress: false in response)",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "GET",
+                            "url": "/api/run-status",
+                            "request": "(none)",
+                            "response": "{ testRunInProgress: boolean, currentChildPid: number|null, customReportAvailable: boolean, customReportPath: string|null }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Access the test report after run completion",
+                    "actions": [
+                      {
+                        "action": "Observe the report availability state",
+                        "description": "Reporting section shows one of four states after processCompleted is true: (1) custom report available — View Custom Report shown; (2) Playwright report available but no custom — Download Playwright Report shown; (3) testFailed with no report — No report found due to script failure.; (4) default — No report available for this run. Before first run: Run a test to generate a report.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Open the custom test report",
+                        "description": "Opens GET /api/tests/custom-report in a new browser window; available only when customReportAvailable is true; serves the most recently generated HealingReporter HTML report from custom-reports/report-{timestamp}.html",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "GET",
+                            "url": "/api/tests/custom-report",
+                            "request": "(none)",
+                            "response": "HTML file: custom-reports/report-{timestamp}.html"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Open the Playwright HTML test report",
+                        "description": "Opens GET /api/tests/report in a new browser window; available when reportAvailable is true but customReportAvailable is false; serves playwright-report/index.html",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "GET",
+                            "url": "/api/tests/report",
+                            "request": "(none)",
+                            "response": "HTML file: playwright-report/index.html"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Launch a localhost sanity test run",
+                "description": "QA Engineer selects Breezeai sanity localhost as the test scenario and provides a localhost URL. The server generates a copy of the dev sanity spec with the dev URL replaced by the provided localhost URL and executes it without OIDC authentication.",
+                "citations": [
+                  {
+                    "type": "code",
+                    "name": "App.jsx",
+                    "reference": "Sanity-check/frontend/src/App.jsx"
+                  }
+                ],
+                "steps": [
+                  {
+                    "step": "Specify test configuration for localhost mode",
+                    "actions": [
+                      {
+                        "action": "Select the test scenario",
+                        "description": "label: Test Scenario; type: enum; required: true; must be set to Breezeai sanity localhost to activate localhost mode and reveal the Localhost URL field; all other scenario options run in authenticated mode",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Select the browser",
+                        "description": "label: Browser; type: enum; required: true; default: Chromium; options: Chromium, Firefox, WebKit; disabled while a test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Indicate whether to run in headless mode",
+                        "description": "label: Run in headless mode; type: boolean; required: false; default: false; when false the browser window is visible; disabled while a test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Enter the localhost URL",
+                        "description": "label: Localhost URL; type: text; required: false; default: http://localhost:5173; placeholder: http://localhost:5173; validation: must be a valid URL with http or https protocol; error: Enter a valid localhost URL, e.g. http://localhost:5173; visible only when testScenario equals Breezeai sanity localhost",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Submit the localhost test run",
+                    "actions": [
+                      {
+                        "action": "Submit the localhost test run to the server",
+                        "description": "Triggers POST /api/run-test with isLocalhost: true and the provided localhostUrl; URL is validated on the client before calling the endpoint; server generates a copy of the dev sanity spec replacing the dev URL with the localhost URL; OIDC authentication is not required",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/run-test",
+                            "request": "{ testScenario: string, browser: string, headless: boolean, isLocalhost: true, localhostUrl: string }",
+                            "response": "{ success: boolean, logs: string[], reportAvailable: boolean, customReportAvailable: boolean, customReportPath: string|null, error?: string }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Monitor live test execution",
+                    "actions": [
+                      {
+                        "action": "Observe the run status indicator",
+                        "description": "Status badge in the Live Test Logs header; values: IDLE (gray), RUNNING (amber), PASSED (green), FAILED (red), STOPPED (red)",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Review the live log entries as they appear",
+                        "description": "Log display streams timestamped entries from the server response and auto-scrolls to the most recent entry",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Poll the server for current run status",
+                        "description": "Automatic background request every 3 seconds while testInProgress is true; updates customReportAvailable and resets run state when the server signals completion",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "GET",
+                            "url": "/api/run-status",
+                            "request": "(none)",
+                            "response": "{ testRunInProgress: boolean, currentChildPid: number|null, customReportAvailable: boolean, customReportPath: string|null }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Access the test report after run completion",
+                    "actions": [
+                      {
+                        "action": "Observe the report availability state",
+                        "description": "Reporting section shows one of four states after processCompleted is true: (1) custom report available — View Custom Report shown; (2) Playwright report available but no custom — Download Playwright Report shown; (3) testFailed with no report — No report found due to script failure.; (4) default — No report available for this run. Before first run: Run a test to generate a report.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Open the custom test report",
+                        "description": "Opens GET /api/tests/custom-report in a new browser window; available only when customReportAvailable is true; serves the most recently generated HealingReporter HTML report from custom-reports/report-{timestamp}.html",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "GET",
+                            "url": "/api/tests/custom-report",
+                            "request": "(none)",
+                            "response": "HTML file: custom-reports/report-{timestamp}.html"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Open the Playwright HTML test report",
+                        "description": "Opens GET /api/tests/report in a new browser window; available when reportAvailable is true but customReportAvailable is false; serves playwright-report/index.html",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "GET",
+                            "url": "/api/tests/report",
+                            "request": "(none)",
+                            "response": "HTML file: playwright-report/index.html"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Stop a test run during execution",
+                "description": "QA Engineer requests the server to stop an in-progress test run. The user must confirm intent before the stop signal is sent. The server terminates the test process tree and the UI transitions to a STOPPED state.",
+                "citations": [
+                  {
+                    "type": "code",
+                    "name": "App.jsx",
+                    "reference": "Sanity-check/frontend/src/App.jsx"
+                  }
+                ],
+                "steps": [
+                  {
+                    "step": "Confirm the stop request",
+                    "actions": [
+                      {
+                        "action": "Confirm the intent to stop the running test",
+                        "description": "A browser confirmation prompt asks: Stop test execution? This will attempt to cancel the running test.; QA Engineer must confirm to proceed; cancelling aborts the stop flow; the Stop control is disabled when no test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Submit the stop signal",
+                    "actions": [
+                      {
+                        "action": "Submit the stop signal to the server",
+                        "description": "Sends POST /api/stop-test; server attempts to terminate the running test process tree; also aborts the in-flight fetch request via AbortController; notification shows Stopping test... then updates with server confirmation or error",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/stop-test",
+                            "request": "(none)",
+                            "response": "{ success: boolean, message: string }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "scenario": "Force-reset stale run state on the server",
+                "description": "QA Engineer forces a reset of the server run state when a test is stuck or the dashboard is in an inconsistent state. The server kills any running child process and clears the in-progress flag.",
+                "citations": [
+                  {
+                    "type": "code",
+                    "name": "App.jsx",
+                    "reference": "Sanity-check/frontend/src/App.jsx"
+                  }
+                ],
+                "steps": [
+                  {
+                    "step": "Confirm the reset request",
+                    "actions": [
+                      {
+                        "action": "Confirm the intent to reset the server run state",
+                        "description": "A browser confirmation prompt asks: Reset run state on server? This will attempt to kill any running test and clear UI state.; QA Engineer must confirm to proceed; cancelling aborts the reset",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Submit the reset request",
+                    "actions": [
+                      {
+                        "action": "Submit the run state reset to the server",
+                        "description": "Sends POST /api/reset-run; server kills any running child process and sets testRunInProgress to false; UI resets to STOPPED state and logs Run state reset on server via user action",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/reset-run",
+                            "request": "(none)",
+                            "response": "{ success: boolean, message: string }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "outcome": "Manage Authentication Credentials",
+            "description": "Persist OIDC session credentials into the server-side global-setup.js to enable authenticated test runs without re-entering credentials each session.",
+            "scenarios": [
+              {
+                "scenario": "Persist OIDC session credentials to the server",
+                "description": "QA Engineer enters the OIDC Key and OIDC Value JSON extracted from browser DevTools, confirms a security warning about permanent file modification, and saves the credentials to global-setup.js on the server. A timestamped backup of the existing file is created automatically before the write.",
+                "citations": [
+                  {
+                    "type": "code",
+                    "name": "App.jsx",
+                    "reference": "Sanity-check/frontend/src/App.jsx"
+                  }
+                ],
+                "steps": [
+                  {
+                    "step": "Provide OIDC credentials for persistence",
+                    "actions": [
+                      {
+                        "action": "Enter the OIDC Key",
+                        "description": "label: OIDC Key; type: text; required: true for save; placeholder: oidc.user:...; format: OIDC session key found in browser DevTools > Application > Session storage; error if empty: Provide both OIDC Key and OIDC Value before saving.",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      },
+                      {
+                        "action": "Provide the OIDC Value",
+                        "description": "label: OIDC Value (JSON); type: JSON text area; required: true for save; must be valid JSON; validation: JSON.parse check before save; error: OIDC value must be valid JSON. Fix it before saving.; disabled when test is in progress",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Confirm the security warning",
+                    "actions": [
+                      {
+                        "action": "Confirm the intent to write sensitive OIDC data to the server",
+                        "description": "A browser confirmation prompt warns: Security warning: this will write sensitive OIDC data into global-setup.js on the server (a permanent file change). Do you want to proceed?; QA Engineer must confirm; cancelling aborts the save",
+                        "apis": [],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Submit the OIDC credentials",
+                    "actions": [
+                      {
+                        "action": "Submit the OIDC credentials to the server",
+                        "description": "Sends POST /api/save-oidc with oidcKey (string) and oidcValue (parsed JSON object); server writes values into global-setup.js and creates a timestamped backup (.bak.{timestamp}); notification shows Saving OIDC to server (creating a backup)... then OIDC saved to global-setup.js (backup created). on success",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/save-oidc",
+                            "request": "{ oidcKey: string, oidcValue: object }",
+                            "response": "{ success: true, backup: string } | { error: string }"
+                          }
+                        ],
+                        "citations": [
+                          {
+                            "type": "code",
+                            "name": "App.jsx",
+                            "reference": "Sanity-check/frontend/src/App.jsx"
+                          },
+                          {
+                            "type": "code",
+                            "name": "server.js",
+                            "reference": "Sanity-check/server.js"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "audit": {
+    "entryPoint": "/",
+    "persona": "QA Engineer",
+    "filesRead": [
+      "Sanity-check/frontend/src/App.jsx",
+      "Sanity-check/server.js"
+    ],
+    "skippedComponents": [
+      {
+        "file": "Sanity-check/frontend/src/main.jsx",
+        "reason": "Pure entry point — createRoot render call only, no state or form elements"
+      }
+    ],
+    "skippedForVisibility": [],
+    "codeGraphSearches": [],
+    "warnings": [
+      {
+        "type": "dedup_skipped",
+        "note": "Functional_Graph_Search MCP tool not available in this agent context. No live graph dedup performed — payload generated fresh."
+      },
+      {
+        "type": "persona_name_caution",
+        "note": "Persona name QA Engineer contains Engineer which appears in forbidden_persona_names. PERSONA input is fixed and must be used verbatim per agent spec."
+      },
+      {
+        "type": "no_gates_found",
+        "note": "No role, permission, feature flag, or subscription tier visibility gates found in App.jsx. All features are accessible to any authenticated user who can reach the dashboard."
+      }
+    ],
+    "validatorsRun": false,
+    "stats": {
+      "scenarios": 5,
+      "steps": 16,
+      "actions": 34,
+      "actionsWithApis": 11,
+      "fieldsEnumerated": 10,
+      "filesRead": 2,
+      "codeGraphSearchCount": 0,
+      "actionsSkippedForOtherPersonas": 0
+    }
+  }
+}

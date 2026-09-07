@@ -1,0 +1,249 @@
+{
+  "project": "Sanity-check",
+  "projectUuid": "26997fe7-41f3-4a88-91f2-86bc69b566ae",
+  "framework": "express",
+  "backendRepo": "D:/PRTesting/Sanity-check",
+  "personas": [
+    {
+      "name": "System",
+      "source": "mechanical mapping",
+      "isExisting": false
+    },
+    {
+      "name": "External System",
+      "source": "mechanical mapping",
+      "isExisting": false
+    }
+  ],
+  "graphqlGranularity": null,
+  "graphqlNeedsConfirmation": false,
+  "graphqlOperations": [],
+  "queueHandlers": [],
+  "totalEntryPoints": 8,
+  "entryPoints": [
+    {
+      "id": 1,
+      "type": "REST",
+      "httpMethod": "POST",
+      "absoluteUrl": "/api/run-test",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 19,
+      "parameters": [
+        {
+          "name": "testType",
+          "in": "body",
+          "required": false
+        },
+        {
+          "name": "testScenario",
+          "in": "body",
+          "required": false
+        },
+        {
+          "name": "browser",
+          "in": "body",
+          "required": true
+        },
+        {
+          "name": "headless",
+          "in": "body",
+          "required": false
+        },
+        {
+          "name": "oidcKey",
+          "in": "body",
+          "required": false
+        },
+        {
+          "name": "oidcValue",
+          "in": "body",
+          "required": false
+        },
+        {
+          "name": "isLocalhost",
+          "in": "body",
+          "required": false
+        },
+        {
+          "name": "localhostUrl",
+          "in": "body",
+          "required": false
+        }
+      ],
+      "requestType": "RunTestRequest",
+      "responseType": "{ success, logs, reportAvailable, customReportAvailable, customReportPath }",
+      "authGuards": [],
+      "category": "Test Execution",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "type": "REST",
+      "httpMethod": "POST",
+      "absoluteUrl": "/api/save-oidc",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 448,
+      "parameters": [
+        {
+          "name": "oidcKey",
+          "in": "body",
+          "required": true
+        },
+        {
+          "name": "oidcValue",
+          "in": "body",
+          "required": true
+        }
+      ],
+      "requestType": "SaveOidcRequest",
+      "responseType": "{ success, backup }",
+      "authGuards": [],
+      "category": "Configuration",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "type": "REST",
+      "httpMethod": "POST",
+      "absoluteUrl": "/api/stop-test",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 488,
+      "parameters": [],
+      "requestType": null,
+      "responseType": "{ success, message }",
+      "authGuards": [],
+      "category": "Test Execution",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "type": "REST",
+      "httpMethod": "GET",
+      "absoluteUrl": "/api/run-status",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 508,
+      "parameters": [],
+      "requestType": null,
+      "responseType": "{ testRunInProgress, currentChildPid, customReportAvailable, customReportPath, lastCustomReportDebug }",
+      "authGuards": [],
+      "category": "Test Execution",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "type": "REST",
+      "httpMethod": "POST",
+      "absoluteUrl": "/api/reset-run",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 521,
+      "parameters": [],
+      "requestType": null,
+      "responseType": "{ success, message }",
+      "authGuards": [],
+      "category": "Test Execution",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "type": "REST",
+      "httpMethod": "GET",
+      "absoluteUrl": "/api/tests/report",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 534,
+      "parameters": [],
+      "requestType": null,
+      "responseType": "text/html (Playwright report index.html)",
+      "authGuards": [],
+      "category": "Reporting",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "type": "REST",
+      "httpMethod": "GET",
+      "absoluteUrl": "/api/custom-report-debug",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 549,
+      "parameters": [],
+      "requestType": null,
+      "responseType": "{ stdoutSnippet, parsed }",
+      "authGuards": [],
+      "category": "Reporting",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "type": "REST",
+      "httpMethod": "GET",
+      "absoluteUrl": "/api/tests/custom-report",
+      "controllerClass": null,
+      "methodName": "anonymous",
+      "file": "server.js",
+      "line": 560,
+      "parameters": [],
+      "requestType": null,
+      "responseType": "text/html (custom HealingReporter HTML report)",
+      "authGuards": [],
+      "category": "Reporting",
+      "subType": null,
+      "persona": "System",
+      "status": "pending"
+    }
+  ],
+  "completed": [],
+  "failed": [],
+  "remaining": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "orphans": {
+    "deadCode": [],
+    "wired": [],
+    "testFixture": [],
+    "routesWithNoFrontendCaller": []
+  },
+  "meta": {
+    "warnings": [],
+    "codeGraphSearchAvailable": false,
+    "stats": {
+      "rest": 8,
+      "graphql": 0,
+      "queue": 0,
+      "orphans": 0
+    }
+  }
+}
