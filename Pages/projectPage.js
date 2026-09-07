@@ -330,6 +330,46 @@ export async function knowledgeGraphVisualization(page) {
   );
 }
 
+export async function downloadArtifacts(page, projectId) {
+  await page.goto(`${TARGET_URL}dashboard/${projectId}`, { waitUntil: "domcontentloaded" });
+
+  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
+  await primaryNavigation
+    .getByRole("button", { name: "Artifacts", exact: true })
+    .click();
+
+  await page.getByRole('button', { name: 'Refresh artifacts' }).click();
+    
+  await page
+    .getByRole("button", { name: "Functional Documentation", exact: true })
+    .click(); 
+  
+  const plainHtmlButton = page.getByRole("button", {
+  name: "Plain HTML Interactive single"
+    }).first();  
+  
+  await expect(plainHtmlButton).toBeVisible({ timeout: 30000 });
+  await expect(plainHtmlButton).toBeEnabled({ timeout: 30000 });
+  await plainHtmlButton.click();  
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 15000 });
+}
+
+export async function knowlegeGraphGeneration(page) {
+  await openCard(
+    page,
+    [/Generate\s+Functional\s+Model/i, /Functional\s+Personas/i, /Functional\s+Ontology/i],
+    "Functional generation"
+  );
+}
+
+export async function knowledgeGraphVisualization(page) {
+  await openCard(
+    page,
+    [/Knowledge\s+Graph/i, /Interactive\s+Neo4j\s+visualization/i],
+    "Knowledge graph visualization"
+  );
+}
+
 export async function aiChatAssistant(page) {
   await openCard(page, [/AI\s+Chat\s+Assistant/i], "AI chat assistant");
 }
