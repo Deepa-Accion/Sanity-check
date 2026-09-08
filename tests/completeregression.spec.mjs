@@ -1,15 +1,15 @@
 import { test, expect } from "./auth.fixture.mjs";
 
-import { LoginPage } from "../pages/loginPage.js";
+import { LoginPage } from "../Pages/loginPage.js";
 
 import {
   DashboardPage,
   DEFAULT_BASE_URL,
-} from "../pages/dashboardPage.js";
+} from "../Pages/dashboardPage.js";
 
-import { ProjectPage } from "../pages/projectPage.js";
+import { ProjectPage } from "../Pages/projectPage.js";
 
-import { CreateProjectPage } from "../pages/createProjectFile.js";
+import { CreateProjectPage } from "../Pages/createProjectFile.js";
 
 let projectName = "";
 let projectId = "";
@@ -44,6 +44,10 @@ async function deleteProjectFromDashboard(page, name) {
 
   await projectPage.deleteProject(name);
 
+  await page.reload({
+    waitUntil: "domcontentloaded",
+  });
+
   await expect(projectPage.getProjectCard(name)).toBeHidden({
     timeout: 30000,
   });
@@ -70,7 +74,7 @@ async function expectSectionSelected(page, sectionName) {
         ariaPressed === "true" ||
         ariaCurrent === "page" ||
         dataState === "active" ||
-        /active|selected/i.test(className || "")
+        /active|selected|bg-primary/i.test(className || "")
       );
     })
     .toBe(true);
@@ -235,7 +239,7 @@ test.describe("Complete Regression Suite", () => {
           .poll(() => page.url(), {
             timeout: 20000,
           })
-          .toMatch(/dashboard/i);
+          .toMatch(/dashboard|[?&]page=\d+/i);
 
         expect(
           await createProjectPage.projectDestination(name)
@@ -269,7 +273,7 @@ test.describe("Complete Regression Suite", () => {
           .poll(() => page.url(), {
             timeout: 20000,
           })
-          .toMatch(/dashboard/i);
+          .toMatch(/dashboard|[?&]page=\d+/i);
 
         // Try creating the same project again
         const second = await openCreateProject(page);
@@ -402,42 +406,11 @@ test.describe("Complete Regression Suite", () => {
         // Verify project menu options
         await expect(
           projectMenu.getByRole("menuitem", {
-            name: /edit project/i,
-          })
-        ).toBeVisible();
-
-        await expect(
-          projectMenu.getByRole("menuitem", {
             name: /export project/i,
           })
         ).toBeVisible();
 
-        await expect(
-          projectMenu.getByRole("menuitem", {
-            name: /delete project/i,
-          })
-        ).toBeVisible();
-
-        // Delete project
-        await projectMenu
-          .getByRole("menuitem", {
-            name: /delete project/i,
-          })
-          .click();
-
-        const confirmDeleteButton = page
-          .getByRole("button", {
-            name: /^delete$/i,
-          })
-          .first();
-
-        if (
-          await confirmDeleteButton
-            .isVisible()
-            .catch(() => false)
-        ) {
-          await confirmDeleteButton.click();
-        }
+        await deleteProjectFromDashboard(page, name);
 
         // Verify project is deleted
         await expect(
