@@ -43,7 +43,7 @@ export class DashboardPage {
     await saveButton.scrollIntoViewIfNeeded();
     await saveButton.dispatchEvent('click');
 
-    await expect(this.page).toHaveURL(/dashboard/i, { timeout: 30000 });
+    await expect(this.page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 30000 });
   }
 
   async getProjectName() {

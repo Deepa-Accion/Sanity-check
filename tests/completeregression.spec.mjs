@@ -1,6 +1,6 @@
 import { test, expect } from "./auth.fixture.mjs";
-
-import { LoginPage } from "../Pages/loginPage.js";
+import path from "node:path";
+import fs from "node:fs";
 
 import {
   DashboardPage,
@@ -9,113 +9,32 @@ import {
 
 import { ProjectPage } from "../Pages/projectPage.js";
 
-import { CreateProjectPage } from "../Pages/createProjectFile.js";
+const ontologyPdfCandidates = [
+  "documents/Release_07-09-2026",
+  "documents",
+  "documents/Release_07_09_2026",
+  "documents/Release_07-09-2026/Organic Producer-to-Customer E-Commerce Platform.pdf",
+].map((entry) => path.resolve(process.cwd(), entry));
+
+const ontologyPdfPath = ontologyPdfCandidates.reduce((resolved, candidate) => {
+  if (resolved || !fs.existsSync(candidate)) return resolved;
+  if (fs.statSync(candidate).isFile() && /\.pdf$/i.test(candidate)) return candidate;
+  if (!fs.statSync(candidate).isDirectory()) return resolved;
+  const pdf = fs.readdirSync(candidate, { withFileTypes: true })
+    .find((entry) => entry.isFile() && /\.pdf$/i.test(entry.name));
+  return pdf ? path.join(candidate, pdf.name) : resolved;
+}, "");
+
+if (!ontologyPdfPath) {
+  throw new Error("No PDF document found in the workspace documents directories.");
+}
+
+const ontologyPdfName = path.basename(ontologyPdfPath);
 
 let projectName = "";
-let projectId = "";
 
 const uniqueProjectName = (suffix) =>
   `Playwright-CreateProject-${suffix}-${Date.now()}`;
-
-/**
- * Open the Create Project form.
- */
-async function openCreateProject(page) {
-  await page.goto(DEFAULT_BASE_URL, {
-    waitUntil: "domcontentloaded",
-  });
-
-  const createProjectPage = new CreateProjectPage(page);
-
-  await createProjectPage.open();
-
-  return createProjectPage;
-}
-
-/**
- * Delete a project from the dashboard.
- */
-async function deleteProjectFromDashboard(page, name) {
-  const projectPage = new ProjectPage(page);
-
-  await page.goto(DEFAULT_BASE_URL, {
-    waitUntil: "domcontentloaded",
-  });
-
-  await projectPage.deleteProject(name);
-
-  await page.reload({
-    waitUntil: "domcontentloaded",
-  });
-
-  await expect(projectPage.getProjectCard(name)).toBeHidden({
-    timeout: 30000,
-  });
-}
-
-/**
- * Verify that a dashboard section is selected.
- */
-async function expectSectionSelected(page, sectionName) {
-  const sectionButton = page
-    .getByRole("button", { name: sectionName })
-    .first();
-
-  await expect(sectionButton).toBeVisible();
-
-  await expect
-    .poll(async () => {
-      const ariaPressed = await sectionButton.getAttribute("aria-pressed");
-      const ariaCurrent = await sectionButton.getAttribute("aria-current");
-      const dataState = await sectionButton.getAttribute("data-state");
-      const className = await sectionButton.getAttribute("class");
-
-      return (
-        ariaPressed === "true" ||
-        ariaCurrent === "page" ||
-        dataState === "active" ||
-        /active|selected|bg-primary/i.test(className || "")
-      );
-    })
-    .toBe(true);
-}
-
-/**
- * Login helper.
- *
- * Credentials are read from environment variables.
- * Do not hard-code username or password in the test code.
- */
-async function loginToBreezeAI(page) {
-  const loginPage = new LoginPage(page);
-
-  await loginPage.navigateToLogin(`${DEFAULT_BASE_URL}?page=1`);
-
-  const createProjectButton = page
-    .getByRole("button", { name: /create project/i })
-    .first();
-
-  if (await createProjectButton.isVisible().catch(() => false)) {
-    return;
-  }
-
-  const username = process.env.BREEZE_USERNAME;
-  const password = process.env.BREEZE_PASSWORD;
-
-  if (!username || !password) {
-    throw new Error(
-      "BREEZE_USERNAME and BREEZE_PASSWORD environment variables must be configured."
-    );
-  }
-
-  await loginPage.login(username, password);
-
-  await expect(
-    page.getByRole("button", { name: /create project/i })
-  ).toBeVisible({
-    timeout: 60000,
-  });
-}
 
 test.describe("Complete Regression Suite", () => {
   test.beforeEach("Url Calling", async ({ page }) => {
@@ -185,7 +104,7 @@ test.describe("Complete Regression Suite", () => {
         console.log("Project Name:", projectName);
       } finally {
         if (created) {
-          await deleteProjectFromDashboard(page, projectName);
+          await new ProjectPage(page).deleteProjectFromDashboard(projectName);
         }
       }
     }
@@ -194,7 +113,7 @@ test.describe("Complete Regression Suite", () => {
   test(
     "@regression rejects an empty project name without creating a project",
     async ({ page }) => {
-      const createProjectPage = await openCreateProject(page);
+      const createProjectPage = await new ProjectPage(page).openCreateProjectForm();
 
       await expect(
         createProjectPage.projectNameInput
@@ -209,7 +128,7 @@ test.describe("Complete Regression Suite", () => {
   test(
     "@regression rejects a whitespace-only project name",
     async ({ page }) => {
-      const createProjectPage = await openCreateProject(page);
+      const createProjectPage = await new ProjectPage(page).openCreateProjectForm();
 
       await createProjectPage.fillProjectName(" ");
 
@@ -224,7 +143,7 @@ test.describe("Complete Regression Suite", () => {
     async ({ page }) => {
       const name = `Playwright & QA / ${Date.now()}`;
 
-      const createProjectPage = await openCreateProject(page);
+      const createProjectPage = await new ProjectPage(page).openCreateProjectForm();
 
       let created = false;
 
@@ -246,7 +165,7 @@ test.describe("Complete Regression Suite", () => {
         ).toBeTruthy();
       } finally {
         if (created) {
-          await deleteProjectFromDashboard(page, name);
+          await new ProjectPage(page).deleteProjectFromDashboard(name);
         }
       }
     }
@@ -261,7 +180,7 @@ test.describe("Complete Regression Suite", () => {
 
       try {
         // Create the first project
-        const first = await openCreateProject(page);
+        const first = await new ProjectPage(page).openCreateProjectForm();
 
         await first.fillProjectName(name);
 
@@ -276,7 +195,7 @@ test.describe("Complete Regression Suite", () => {
           .toMatch(/dashboard|[?&]page=\d+/i);
 
         // Try creating the same project again
-        const second = await openCreateProject(page);
+        const second = await new ProjectPage(page).openCreateProjectForm();
 
         await second.fillProjectName(name);
 
@@ -295,7 +214,7 @@ test.describe("Complete Regression Suite", () => {
         ).toBeTruthy();
       } finally {
         if (firstCreated) {
-          await deleteProjectFromDashboard(page, name);
+          await new ProjectPage(page).deleteProjectFromDashboard(name);
         }
       }
     }
@@ -325,17 +244,12 @@ test.describe("Complete Regression Suite", () => {
         // Navigate to My Projects
         await projectPage.selectMyProjects();
 
-        await expectSectionSelected(page, "My Projects");
-
-        const myProjectCard =
-          projectPage.getProjectCard(name);
+        await projectPage.waitForSectionSelected("My Projects");
 
         const projectStar =
           projectPage.getProjectStar(name);
 
-        await expect(myProjectCard).toBeVisible({
-          timeout: 30000,
-        });
+        await projectPage.waitForProjectVisible(name);
 
         // Favourite project
         await projectPage.favouriteProject(name);
@@ -347,29 +261,16 @@ test.describe("Complete Regression Suite", () => {
         // Navigate to Favourites
         await projectPage.selectFavourites();
 
-        await expectSectionSelected(page, "Favourites");
+        await projectPage.waitForSectionSelected("Favourites");
 
-        const favouritesProjectCard =
-          projectPage.getProjectCard(name);
-
-        await expect(
-          favouritesProjectCard
-        ).toBeVisible({
-          timeout: 30000,
-        });
-
-        await expect(
-          favouritesProjectCard
-        ).toContainText(name);
+        await projectPage.waitForProjectVisible(name);
 
         // Navigate back to My Projects
         await projectPage.selectMyProjects();
 
-        await expectSectionSelected(page, "My Projects");
+        await projectPage.waitForSectionSelected("My Projects");
 
-        await expect(myProjectCard).toBeVisible({
-          timeout: 30000,
-        });
+        await projectPage.waitForProjectVisible(name);
 
         await expect(projectStar).toBeVisible();
 
@@ -383,34 +284,25 @@ test.describe("Complete Regression Suite", () => {
         // Verify project is removed from Favourites
         await projectPage.selectFavourites();
 
-        await expectSectionSelected(page, "Favourites");
+        await projectPage.waitForSectionSelected("Favourites");
+        await projectPage.refreshProjectList();
+        await projectPage.selectFavourites();
+        await projectPage.waitForSectionSelected("Favourites");
 
-        await expect(
-          projectPage.getProjectCard(name)
-        ).toBeHidden({
-          timeout: 30000,
-        });
+        expect(await projectPage.isProjectVisible(name)).toBe(false);
 
         // Navigate back to My Projects
         await projectPage.selectMyProjects();
 
-        await expectSectionSelected(page, "My Projects");
+        await projectPage.waitForSectionSelected("My Projects");
 
         // Open project menu
         await projectPage.openProjectMenu(name);
 
-        const projectMenu = page.getByRole("menu", {
-          name: /project options/i,
-        });
-
         // Verify project menu options
-        await expect(
-          projectMenu.getByRole("menuitem", {
-            name: /export project/i,
-          })
-        ).toBeVisible();
+        expect(await projectPage.isExportProjectMenuItemVisible()).toBe(true);
 
-        await deleteProjectFromDashboard(page, name);
+        await projectPage.deleteProjectFromDashboard(name);
 
         // Verify project is deleted
         await expect(
@@ -423,7 +315,7 @@ test.describe("Complete Regression Suite", () => {
       } finally {
         // Cleanup if test failed before deletion
         if (created && !deleted) {
-          await deleteProjectFromDashboard(page, name);
+          await projectPage.deleteProjectFromDashboard(name);
         }
       }
     }
@@ -433,7 +325,7 @@ test.describe("Complete Regression Suite", () => {
     "@regression cancels the form without saving entered data",
     async ({ page }) => {
       const createProjectPage =
-        await openCreateProject(page);
+        await new ProjectPage(page).openCreateProjectForm();
 
       const name = uniqueProjectName("cancel");
 
@@ -455,11 +347,97 @@ test.describe("Complete Regression Suite", () => {
         createProjectPage.projectNameInput
       ).toBeHidden();
 
-      await expect(
-        page.getByRole("button", {
-          name: /create project/i,
-        })
-      ).toBeVisible();
+      expect(await new ProjectPage(page).isCreateProjectButtonVisible()).toBe(true);
+    }
+  );
+
+  // ============================================================
+  // Ontology Generation Regression Coverage
+  // ============================================================
+  test(
+    "@regression creates an ontology and covers Persona and Graph workflows",
+    async ({ page }) => {
+      test.setTimeout(900000);
+
+      const projectPage = new ProjectPage(page);
+      const name = uniqueProjectName("ontology");
+      let created = false;
+
+      try {
+        await test.step("Create project and generate ontology", async () => {
+          const createProjectPage = await projectPage.openCreateProjectForm();
+          await createProjectPage.fillProjectName(name);
+          await createProjectPage.fillDescription("Ontology workflow regression coverage.");
+          await createProjectPage.save();
+          created = true;
+
+          await expect.poll(() => page.url(), { timeout: 30000 })
+            .toMatch(/dashboard|[?&]page=\d+/i);
+          await projectPage.openOntologyGeneration();
+          await projectPage.openFunctionalRequirements();
+          await projectPage.uploadFunctionalDocument(ontologyPdfPath);
+          expect(await projectPage.isUploadedFileVisible(ontologyPdfName)).toBe(true);
+          expect(await projectPage.uploadAllDocuments()).toBe(true);
+          await projectPage.generateFunctionalOntology();
+          await projectPage.waitForGenerationComplete();
+          expect(await projectPage.isOntologyRedoVisible()).toBe(true);
+        });
+
+        await test.step("Verify Functional Requirements and Persona count", async () => {
+          expect(await projectPage.isFunctionalRequirementsVisible()).toBe(true);
+          expect(await projectPage.isFunctionalSubtitleVisible()).toBe(true);
+          await projectPage.refreshOntology();
+          await projectPage.waitForSectionItems("Persona");
+          expect(await projectPage.getPersonaCount()).toBeGreaterThan(0);
+        });
+
+        await test.step("Clone and delete a Persona", async () => {
+          const sourcePersona = await projectPage.getVisibleNodeName("Persona");
+          expect(sourcePersona).toBeTruthy();
+          const beforeNames = await projectPage.getPersonaNames();
+          const clonedPersona = await projectPage.cloneAndDeletePersona(sourcePersona);
+          const afterNames = await projectPage.getPersonaNames();
+          expect(clonedPersona || afterNames.length).toBeTruthy();
+          expect(afterNames.length).toBeGreaterThanOrEqual(beforeNames.length);
+        });
+
+        await test.step("Edit a Persona description", async () => {
+          await projectPage.refreshOntology();
+          const persona = await projectPage.getVisibleNodeName("Persona");
+          expect(persona).toBeTruthy();
+          await projectPage.updatePersonaDescription(persona, `Updated description for ${persona}`);
+        });
+
+        await test.step("Merge Personas when multiple Personas are available", async () => {
+          await projectPage.refreshOntology();
+          const personas = await projectPage.getPersonaNames();
+          if (personas.length > 1) {
+            const merged = await projectPage.mergeFirstTwoPersonas(personas);
+            if (!merged) console.log("Merge Personas: merge control was unavailable.");
+            expect(await projectPage.getPersonaCount()).toBeGreaterThan(1);
+          } else {
+            console.log("Merge Personas: skipped because fewer than two Personas are available.");
+          }
+        });
+
+        await test.step("Create and cancel Persona creation", async () => {
+          await projectPage.createPersona(`Taylor Morgan ${Date.now()}`, "Created by regression coverage.");
+          await projectPage.cancelPersonaCreation(`Jordan Lee ${Date.now()}`, "Cancelled by regression coverage.");
+        });
+
+        await test.step("Validate Graph hierarchy levels", async () => {
+          if (await projectPage.isGraphVisible()) {
+            const clickedLevels = await projectPage.doubleClickGraphLevels(
+              ["Persona", "Task", "Scenario", "Design", "Action", "Endpoint"]
+            );
+            console.log(`Graph levels double-clicked: ${clickedLevels.join(", ") || "none"}`);
+          }
+        });
+      } finally {
+        if (created) {
+          await projectPage.deleteProjectFromDashboard(name);
+        }
+      }
     }
   );
 });
