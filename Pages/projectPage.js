@@ -61,28 +61,87 @@ export async function projectHome(page, projectId = null) {
   await checkAndRecoverFromAppError(page);
 }
 
-export async function downloadArtifacts(page, projectId) {
+function artifactLocators(page) {
+  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
+  const generateFunctionalDialog = page.getByRole("dialog", { name: "Generate Functional" });
+
+  return {
+    menuArtifactsButton: primaryNavigation.getByRole("button", { name: "Artifacts", exact: true }),
+    downloadDocumentationBtn: page.getByRole("button", { name: "Functional Documentation", exact: true }),
+    searchArtifactsButton: page.getByRole('textbox', { name: 'Search artifacts...', exact: true }),
+    generateFunctionalDialog: page.getByRole("dialog", { name: "Generate Functional" }),
+    dwnldArtifactPlainHtmlBtn: generateFunctionalDialog.getByRole("button", {
+      name: /Plain HTML Interactive single/i,
+    }).first(),
+    dwnldArtifactPlainMarkdownBtn: generateFunctionalDialog.getByRole("button", {
+      name: /Plain Markdown/i,
+    }).first(),
+    viewButton: page.getByRole("button", { name: "View", exact: true }).first(),
+    htmlArtifactContent: page.locator("div").filter({ hasText: "htmlOpenCopy1<!DOCTYPE html>" }).nth(5),
+    htmlArtifactExitOverlay: page.locator(".fixed.inset-0.bg-black\\/20"),
+    readyText: page.getByText("Ready", { exact: true })
+  };
+}
+
+export async function downloadArtifactPlainHtml(page, projectId) {
   await projectHome(page, projectId);
 
-  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
-  await primaryNavigation
-    .getByRole("button", { name: "Artifacts", exact: true })
-    .click();
+  const {
+    menuArtifactsButton,
+    downloadDocumentationBtn,
+    searchArtifactsButton,
+    generateFunctionalDialog,
+    dwnldArtifactPlainHtmlBtn,
+    readyText,
+  } = artifactLocators(page);
+  await menuArtifactsButton.click();
+  await expect(searchArtifactsButton).toBeVisible({ timeout: 30000 });
+  await searchArtifactsButton.click();
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 30000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 30000 });
+  await downloadDocumentationBtn.click();
 
-  await page.getByRole('button', { name: 'Refresh artifacts' }).click();
-    
-  await page
-    .getByRole("button", { name: "Functional Documentation", exact: true })
-    .click(); 
-  
-  const plainHtmlButton = page.getByRole("button", {
-  name: "Plain HTML Interactive single"
-    }).first();  
-  
-  await expect(plainHtmlButton).toBeVisible({ timeout: 30000 });
-  await expect(plainHtmlButton).toBeEnabled({ timeout: 30000 });
-  await plainHtmlButton.click();  
-  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 15000 });
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainHtmlBtn).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 30000 });
+  await dwnldArtifactPlainHtmlBtn.click();
+  await expect(readyText).toBeVisible({ timeout: 15000 });
+}
+
+export async function validateDownloadedPlainHtml(page, projectName) {
+  const { viewButton, htmlArtifactContent, htmlArtifactExitOverlay } = artifactLocators(page);
+  const expectedTitle = `Functional Specification - ${projectName}`;
+
+  await viewButton.click();
+  await expect(htmlArtifactContent).toBeVisible({ timeout: 15000 });
+  await expect(htmlArtifactContent).toContainText(expectedTitle);
+  await htmlArtifactExitOverlay.click({ position: { x: 20, y: 20 }, force: true });
+  await expect(htmlArtifactExitOverlay).toBeHidden({ timeout: 15000 });
+}
+
+export async function downloadArtifactPlainMarkdown(page, projectId) {
+  await projectHome(page, projectId);
+
+  const {
+    menuArtifactsButton,
+    downloadDocumentationBtn,
+    searchArtifactsButton,
+    generateFunctionalDialog,
+    dwnldArtifactPlainMarkdownBtn,
+    readyText,
+  } = artifactLocators(page);
+  await menuArtifactsButton.click();
+  await expect(searchArtifactsButton).toBeVisible({ timeout: 30000 });
+  await searchArtifactsButton.click();
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 30000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 30000 });
+  await downloadDocumentationBtn.click();
+
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 30000 });
+  await dwnldArtifactPlainMarkdownBtn.click();
+  await expect(readyText).toBeVisible({ timeout: 15000 });
 }
 
 export async function knowlegeGraphGeneration(page) {

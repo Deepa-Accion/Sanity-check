@@ -1,6 +1,6 @@
 import { test, expect } from "./auth.fixture.mjs";
 import { createProject, selectFirstListedProject, selectProject } from "../Pages/dashboardPage.js";
-import { openAllCards, downloadArtifacts } from "../Pages/projectPage.js";
+import { openAllCards, downloadArtifactPlainHtml, validateDownloadedPlainHtml, downloadArtifactPlainMarkdown } from "../Pages/projectPage.js";
 import { uploadDocumentInKnowledgeBase, uploadDocumentInAIChat } from "../Pages/knowlegeBase.js";
 
 let projectName = '';
@@ -34,7 +34,19 @@ test.describe("Sanity Suite", () => {
     projectId = await createProject(page, projectName, projectName);
     console.log("Project ID:", projectId);
     console.log("Project Name:", projectName);
-    await downloadArtifacts(page, projectId);
+    await downloadArtifactPlainHtml(page, projectId);
+    await validateDownloadedPlainHtml(page, projectName);
+
+  });
+
+  test("@regression download artifact plain markdown from the artifacts page", async ({ page }) => {
+    // Create new breeze project and download its plain markdown artifact
+    const currectDateTime = new Date().toISOString().replace(/[:.]/g, '-');
+    projectName = `SanityCheck-${currectDateTime}-Automation`;
+    projectId = await createProject(page, projectName, projectName);
+    console.log("Project ID:", projectId);
+    console.log("Project Name:", projectName);
+    await downloadArtifactPlainMarkdown(page, projectId);
 
   });
 
