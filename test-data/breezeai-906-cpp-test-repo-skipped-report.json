@@ -1,0 +1,38 @@
+{
+  "summary": {
+    "unsupported": 2,
+    "ignored": 3
+  },
+  "totalSkippedFiles": 5,
+  "unsupportedExtensions": {
+    ".md": 1,
+    ".txt": 1
+  },
+  "ignoredDirectories": [
+    ".git",
+    "logs",
+    "vendor"
+  ],
+  "files": [
+    {
+      "path": "CMakeLists.txt",
+      "reason": "unsupported"
+    },
+    {
+      "path": "README-QA.md",
+      "reason": "unsupported"
+    },
+    {
+      "path": "boost/shared_ptr.hpp",
+      "reason": "ignored"
+    },
+    {
+      "path": "external/openssl/ssl.h",
+      "reason": "ignored"
+    },
+    {
+      "path": "thirdparty/jsoncpp/json.h",
+      "reason": "ignored"
+    }
+  ]
+}

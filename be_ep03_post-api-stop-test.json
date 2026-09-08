@@ -1,0 +1,123 @@
+{
+  "payload": {
+    "personas": [
+      {
+        "persona": "System",
+        "description": null,
+        "outcomes": [
+          {
+            "outcome": "Manage Test Execution",
+            "description": "Provide server-side control over the lifecycle of spawned Playwright test processes, including stopping active runs.",
+            "scenarios": [
+              {
+                "scenario": "Terminate running Playwright test process",
+                "description": "server.js POST /api/stop-test reads the module-level currentChild process reference. If no child is active, resets testRunInProgress=false and currentChild=null and returns HTTP 200 {success:true, message:'No running process found.'}. If a child exists, dispatches killProcessTree: on win32 spawns taskkill /PID <pid> /T /F; on POSIX sends SIGTERM to process group (-pid) then SIGKILL after 3000 ms. Sets currentChild=null; testRunInProgress is not reset here—deferred to the child 'close' event handler registered in the /api/run-test flow. Returns HTTP 500 {success:false, error:e.message} on exception.",
+                "citations": [
+                  { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" }
+                ],
+                "steps": [
+                  {
+                    "step": "Receive stop-test request",
+                    "actions": [
+                      {
+                        "action": "Receive POST /api/stop-test",
+                        "description": "Accepts POST with no required body. Response shape: {success:boolean, message?:string, error?:string}. No authentication guard on this route.",
+                        "apis": [
+                          {
+                            "type": "REST",
+                            "method": "POST",
+                            "url": "/api/stop-test",
+                            "request": "(no body required)",
+                            "response": "{success:boolean, message?:string, error?:string}"
+                          }
+                        ],
+                        "citations": [
+                          { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Evaluate active process state",
+                    "actions": [
+                      {
+                        "action": "Evaluate currentChild reference",
+                        "description": "Reads module-level currentChild (set by /api/run-test when a Playwright child is spawned). If null (no test running): sets testRunInProgress=false, currentChild=null, returns HTTP 200 {success:true, message:'No running process found.'} as a recovery path for the UI.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "step": "Terminate process tree",
+                    "actions": [
+                      {
+                        "action": "Terminate Playwright child process",
+                        "description": "Calls killProcessTree(currentChild): on win32 — spawns taskkill /PID <pid> /T /F to force-kill entire process tree including browser children; on POSIX — process.kill(-pid, 'SIGTERM') targeting the process group, then setTimeout 3000 ms process.kill(-pid, 'SIGKILL'). Outer exception fallback: child.kill('SIGTERM').",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" }
+                        ]
+                      },
+                      {
+                        "action": "Clear active process reference",
+                        "description": "Sets module-level currentChild=null after kill signal is dispatched. testRunInProgress is NOT reset here — it remains true until the child 'close' event fires (registered in the /api/run-test handler) and sets testRunInProgress=false.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" }
+                        ]
+                      },
+                      {
+                        "action": "Handle termination exception",
+                        "description": "On caught exception during kill sequence: logs via console.error('Error while stopping test process:', e); returns HTTP 500 {success:false, error:e.message}.",
+                        "apis": [],
+                        "citations": [
+                          { "type": "code", "name": "server.js", "reference": "Sanity-check/server.js" }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "audit": {
+    "entryPoint": "POST /api/stop-test",
+    "persona": "System",
+    "filesRead": ["Sanity-check/server.js"],
+    "skippedComponents": [],
+    "skippedDependencies": [],
+    "sideEffects": [
+      { "kind": "process", "identifier": "killProcessTree -> taskkill /PID /T /F (win32) | process.kill(-pid, SIGTERM/SIGKILL) (POSIX)", "matchedToAction": true },
+      { "kind": "state", "identifier": "module-level currentChild=null, testRunInProgress=false", "matchedToAction": true }
+    ],
+    "branchesAndErrors": [
+      { "what": "no active process", "code": "HTTP 200", "handledAs": "Evaluate currentChild reference action" },
+      { "what": "successful kill", "code": "HTTP 200", "handledAs": "Terminate Playwright child process + Clear active process reference actions" },
+      { "what": "exception during kill", "code": "HTTP 500", "handledAs": "Handle termination exception action" }
+    ],
+    "codeGraphSearchAvailable": false,
+    "validatorsRun": true,
+    "codeGraphSearches": [],
+    "warnings": [
+      { "type": "code_graph_unavailable", "note": "Code_Graph_Search tool not in available tool set — proceeded on Read+Grep only." }
+    ],
+    "stats": {
+      "scenarios": 1,
+      "steps": 3,
+      "actions": 5,
+      "actionsWithApis": 1,
+      "fieldsEnumerated": 3,
+      "sideEffectsLogged": 2,
+      "sideEffectsMatched": 2,
+      "filesRead": 1,
+      "codeGraphSearchCount": 0
+    }
+  }
+}
