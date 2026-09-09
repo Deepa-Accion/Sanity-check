@@ -1,6 +1,16 @@
 import { test, expect } from "./auth.fixture.mjs";
 import { createProject, selectFirstListedProject, selectProject } from "../Pages/dashboardPage.js";
-import { openAllCards, downloadArtifactPlainHtml, validateDownloadedPlainHtml, downloadArtifactPlainMarkdown } from "../Pages/projectPage.js";
+import {
+  openAllCards,
+  downloadArtifactPlainHtml,
+  validateDownloadedPlainHtml,
+  validatePlainHtmlInNewWindow,
+  downloadArtifactPlainMarkdown,
+  validateDownloadedPlainMarkdown,
+  validatePlainMarkdownInNewWindow,
+  reviewArtifactsPage,
+  validateCopyPlainHtmlContent,
+} from "../Pages/projectPage.js";
 import { uploadDocumentInKnowledgeBase, uploadDocumentInAIChat } from "../Pages/knowlegeBase.js";
 
 let projectName = '';
@@ -34,8 +44,11 @@ test.describe("Sanity Suite", () => {
     projectId = await createProject(page, projectName, projectName);
     console.log("Project ID:", projectId);
     console.log("Project Name:", projectName);
+    await reviewArtifactsPage(page, projectId);
     await downloadArtifactPlainHtml(page, projectId);
+    await validateCopyPlainHtmlContent(page, projectName, projectId);
     await validateDownloadedPlainHtml(page, projectName);
+    await validatePlainHtmlInNewWindow(page, projectName);
 
   });
 
@@ -47,8 +60,9 @@ test.describe("Sanity Suite", () => {
     console.log("Project ID:", projectId);
     console.log("Project Name:", projectName);
     await downloadArtifactPlainMarkdown(page, projectId);
-
+    await validateDownloadedPlainMarkdown(page, projectName);
+    await validatePlainMarkdownInNewWindow(page, projectName);
+    
   });
-
   
   });
