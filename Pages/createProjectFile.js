@@ -10,6 +10,7 @@ export class CreateProjectPage {
     this.addTagButton = page.getByRole("button", { name: /^add$/i });
     this.saveButton = page.getByRole("button", { name: /^save$/i });
     this.cancelButton = page.getByRole("button", { name: /^(cancel|close|back)$/i });
+    this.tagValidationMessage = page.getByText("Tag name must not exceed 50 characters", { exact: true }).first();
   }
 
   async open() {
@@ -34,15 +35,19 @@ export class CreateProjectPage {
     await this.addTagButton.click();
   }
 
+  getTagChip(tag) {
+    return this.page.getByText(tag, { exact: true });
+  }
+
   async save() {
     await this.saveButton.scrollIntoViewIfNeeded();
-    await this.saveButton.dispatchEvent("click");
+    await this.saveButton.click({ force: true });
   }
 
   async cancelOrClose() {
     const visibleCancel = this.cancelButton.first();
     await expect(visibleCancel).toBeVisible();
-    await visibleCancel.click();
+    await visibleCancel.click({ force: true });
   }
 
   async formIsVisible() {
@@ -57,12 +62,15 @@ export class CreateProjectPage {
   }
 
   async projectDestination(name) {
-    const projectCard = this.page.locator("article").filter({ hasText: name }).first();
-    if (await projectCard.isVisible().catch(() => false)) {
-      return projectCard;
-    }
+    const projectCard = this.page
+      .locator('article, [data-testid*="project-card"], div.bg-surface-card')
+      .filter({ hasText: name })
+      .first();
 
-    const destination = this.page.getByText(name, { exact: true }).first();
-    return destination.isVisible().catch(() => false) ? destination : null;
+    const projectName = projectCard.getByText(name, { exact: true }).first();
+    return (await projectCard.isVisible().catch(() => false)) &&
+      (await projectName.isVisible().catch(() => false))
+      ? projectCard
+      : null;
   }
 }
