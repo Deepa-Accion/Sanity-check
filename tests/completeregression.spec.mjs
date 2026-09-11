@@ -1,17 +1,15 @@
 import { test, expect } from "./auth.fixture.mjs";
-import { createProject, selectFirstListedProject, selectProject } from "../Pages/dashboardPage.js";
+import { createProject } from "../Pages/dashboardPage.js";
 import {
-  openAllCards,
   downloadArtifactPlainHtml,
-  validateDownloadedPlainHtml,
-  validatePlainHtmlInNewWindow,
-  downloadArtifactPlainMarkdown,
-  validateDownloadedPlainMarkdown,
-  validatePlainMarkdownInNewWindow,
   reviewArtifactsPage,
   validateCopyPlainHtmlContent,
+  downloadArtifactPlainMarkdown,
+  validateDownloadedPlainHtml, 
+  validateDownloadedPlainMarkdown,
+  validatePlainMarkdownInNewWindow,
+  validatePlainHtmlInNewWindow
 } from "../Pages/projectPage.js";
-import { uploadDocumentInKnowledgeBase, uploadDocumentInAIChat } from "../Pages/knowlegeBase.js";
 
 let projectName = '';
 let projectId = '';
