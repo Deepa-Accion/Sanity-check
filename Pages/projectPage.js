@@ -61,6 +61,267 @@ export async function projectHome(page, projectId = null) {
   await checkAndRecoverFromAppError(page);
 }
 
+async function openArtifactsMenu(page, projectId = null) {
+  const { menuArtifactsButton, searchArtifactsButton } = artifactLocators(page);
+
+  await menuArtifactsButton.click();
+
+  if (projectId) {
+    const expectedUrl = `${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}knowledge/${projectId}`;
+    await expect(page).toHaveURL(new RegExp(`^${expectedUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/)?$`));
+  }
+
+  await expect(searchArtifactsButton).toBeVisible({ timeout: 30000 });
+  await searchArtifactsButton.click();
+}
+
+function artifactLocators(page) {
+  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
+  const generateFunctionalDialog = page.getByRole("dialog", { name: "Generate Functional" });
+
+  return {
+    menuArtifactsButton: primaryNavigation.getByRole("button", { name: "Artifacts", exact: true }),
+    downloadDocumentationBtn: page.getByRole("button", { name: "Functional Documentation", exact: true }),
+    searchArtifactsButton: page.getByRole('textbox', { name: 'Search artifacts...', exact: true }),
+    generateFunctionalDialog: page.getByRole("dialog", { name: "Generate Functional" }),
+    dwnldArtifactPlainHtmlBtn: generateFunctionalDialog.getByRole("button", {
+      name: /Plain HTML Interactive single/i,
+    }).first(),
+    dwnldArtifactPlainMarkdownBtn: generateFunctionalDialog.getByRole("button", {
+      name: /Plain Markdown/i,
+    }).first(),
+    viewButton: page.getByRole("button", { name: "View", exact: true }).first(),
+    openHtmlInNewTabButton: page.getByRole('button', { name: 'Open', description: 'Open HTML in new tab' }),
+    secondOpenButton: page.getByRole('button', { name: 'Open' }).first(),
+    mrkdwnOpenButton: page.getByRole('button', { name: 'Open' }),
+    htmlArtifactExitOverlay: page.getByRole("button", { name: /Close/i }).first(),
+    overlaycloseButton: page
+    .getByRole("button", { name: "Open" })
+    .first()
+    .locator("..")
+    .getByRole("button")
+    .nth(3),
+    copyButton: page.getByRole("button", { name: "Copy", exact: true }).first(),
+    secondaryCopyButton: page.locator('div.flex.justify-end.items-center.p-2').locator('button').nth(2),
+    artifactPreviewDialog: page.getByRole("dialog").filter({ hasText: /Functional Specification|Markdown/i }).first(),
+    artifactsHeading: page.getByRole("heading", { name: "Artifacts", exact: true }),
+    refreshArtifactsButton: page.getByRole("button", { name: "Refresh artifacts", exact: true }),
+    artifactsTable: page.getByRole("table"),
+    
+    readyText: page.getByText("Ready", { exact: true })
+  };
+}
+
+export async function downloadArtifactPlainHtml(page, projectId) {
+  const {
+    downloadDocumentationBtn,
+    generateFunctionalDialog,
+    dwnldArtifactPlainHtmlBtn,
+    readyText,
+    searchArtifactsButton,
+  } = artifactLocators(page);
+
+  const alreadyOnArtifactsPage = page.url().includes(`/knowledge/${projectId}`);
+  const artifactsSearchVisible = await searchArtifactsButton.isVisible({ timeout: 2000 }).catch(() => false);
+
+  if (!alreadyOnArtifactsPage && !artifactsSearchVisible) {
+    await page.waitForTimeout(1000);
+    const retrySearchVisible = await searchArtifactsButton.isVisible({ timeout: 2000 }).catch(() => false);
+    if (!retrySearchVisible) {
+      await openArtifactsMenu(page, projectId);
+    }
+  }
+
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 30000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 30000 });
+  await downloadDocumentationBtn.click();
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 30000 });
+
+  await expect(dwnldArtifactPlainHtmlBtn).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 30000 });
+  await dwnldArtifactPlainHtmlBtn.click();
+  await expect(readyText).toBeVisible({ timeout: 15000 });
+}
+
+export async function validateDownloadedPlainHtml(page, projectName) {
+  const { viewButton, overlaycloseButton } = artifactLocators(page);
+  const expectedTitle = `Functional Specification - ${projectName}`;
+
+  await viewButton.click();
+  await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 30 seconds.`).toBeVisible({ timeout: 30000 });
+  await overlaycloseButton.click();
+}
+
+export async function validateDownloadedPlainMarkdown(page, projectName) {
+  const { viewButton, overlaycloseButton } = artifactLocators(page);
+  const expectedTitle = `${projectName}`;
+
+  await viewButton.click();
+  await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 30 seconds.`).toBeVisible({ timeout: 30000 });
+  await overlaycloseButton.click();
+}
+
+export async function validatePlainHtmlInNewWindow(page, projectName) {
+  const {
+    viewButton,
+    openHtmlInNewTabButton,
+    secondOpenButton,
+  } = artifactLocators(page);
+
+  const expectedTitle = `Functional Specification - ${projectName}`;
+
+  await expect(viewButton).toBeVisible({ timeout: 30000 });
+  await viewButton.click();
+
+  await expect(
+    page.getByText(expectedTitle, { exact: false }),
+    `Custom Error: "${expectedTitle}" was not visible within 30 seconds.`
+  ).toBeVisible({ timeout: 30000 });
+
+  const openButtons = [
+    openHtmlInNewTabButton,
+    secondOpenButton,
+  ].filter(Boolean);
+  for (const candidateButton of openButtons) {
+    const buttonVisible = await candidateButton
+      .waitFor({ state: "visible", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!buttonVisible) {
+      continue;
+    }
+    const [newPage] = await Promise.all([
+      page.context().waitForEvent("page", { timeout: 15000 }),
+      candidateButton.click(),
+    ]);
+    await newPage.waitForLoadState("domcontentloaded");
+    await expect(newPage).toHaveURL(
+      /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
+    );
+    await expect(
+      newPage.getByText(projectName, { exact: false }).first()
+    ).toBeVisible({ timeout: 30000 });
+    await newPage.close();
+    await page.bringToFront();
+  }
+}
+
+export async function validatePlainMarkdownInNewWindow(page, projectName) {
+  const {
+    viewButton,
+    mrkdwnOpenButton,
+  } = artifactLocators(page);
+
+  const expectedTitle = `${projectName}`;
+
+  await expect(viewButton).toBeVisible({ timeout: 30000 });
+  await viewButton.click();
+
+  await expect(
+    page.getByText(expectedTitle, { exact: false }),
+    `Custom Error: "${expectedTitle}" was not visible within 30 seconds.`
+  ).toBeVisible({ timeout: 30000 });
+
+  await expect(mrkdwnOpenButton).toBeVisible({ timeout: 15000 });
+  await expect(mrkdwnOpenButton).toBeEnabled();
+
+  const [newPage] = await Promise.all([
+    page.context().waitForEvent("page", { timeout: 15000 }),
+    mrkdwnOpenButton.click(),
+  ]);
+
+  await newPage.waitForLoadState("domcontentloaded");
+
+  await expect(newPage).toHaveURL(
+    /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
+  );
+
+  await expect(
+    newPage.getByText(projectName, { exact: false }).first()
+  ).toBeVisible({ timeout: 30000 });
+
+  await newPage.close();
+  await page.bringToFront();
+  await page.waitForTimeout(2000); // Optional: wait for a moment before proceeding
+}
+
+export async function reviewArtifactsPage(page, projectId) {
+  await projectHome(page, projectId);
+  const { artifactsHeading, refreshArtifactsButton, artifactsTable } = artifactLocators(page);
+
+  await openArtifactsMenu(page, projectId);
+  await expect(artifactsHeading).toBeVisible();
+  await expect(refreshArtifactsButton).toBeVisible();
+
+  const tableVisible = await artifactsTable.isVisible({ timeout: 2000 }).catch(() => false);
+  if (tableVisible) {
+    await expect(artifactsTable).toBeVisible();
+  }
+
+  await expect(page.getByRole("button", { name: /Functional Documentation/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gherkin", exact: true })).toBeVisible();
+
+}
+
+export async function validateCopyPlainHtmlContent(page, projectName, projectId) {
+  const { viewButton, copyButton, secondaryCopyButton, overlaycloseButton } = artifactLocators(page);
+  const targetOrigin = (process.env.TARGET_URL || "https://ai.accionbreeze.com/").replace(/\/$/, "");
+
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: targetOrigin,
+  });
+
+  const viewVisible = await viewButton.isVisible({ timeout: 5000 }).catch(() => false);
+  if (!viewVisible) {
+    await downloadArtifactPlainHtml(page, projectId);
+  }
+
+  await viewButton.click();
+
+  const copyButtons = [copyButton, secondaryCopyButton].filter(Boolean);
+
+  for (const candidateButton of copyButtons) {
+    await expect(candidateButton).toBeVisible({ timeout: 15000 });
+    await candidateButton.click();
+    await expect.poll(async () => {
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText().catch(() => ""));
+      return clipboardText.includes("<!DOCTYPE html>") && clipboardText.includes(projectName);
+    }, { timeout: 15000 }).toBeTruthy();
+  }
+  await overlaycloseButton.click();
+}
+
+export async function downloadArtifactPlainMarkdown(page, projectId) {
+  const {
+    downloadDocumentationBtn,
+    generateFunctionalDialog,
+    dwnldArtifactPlainMarkdownBtn,
+    readyText,
+    searchArtifactsButton,
+  } = artifactLocators(page);
+
+  const alreadyOnArtifactsPage = page.url().includes(`/knowledge/${projectId}`);
+  const artifactsSearchVisible = await searchArtifactsButton.isVisible({ timeout: 2000 }).catch(() => false);
+
+  if (!alreadyOnArtifactsPage && !artifactsSearchVisible) {
+    await page.waitForTimeout(1000);
+    const retrySearchVisible = await searchArtifactsButton.isVisible({ timeout: 2000 }).catch(() => false);
+    if (!retrySearchVisible) {
+      await openArtifactsMenu(page, projectId);
+    }
+  }
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 30000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 30000 });
+  await downloadDocumentationBtn.click();
+
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeVisible({ timeout: 30000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 30000 });
+  await dwnldArtifactPlainMarkdownBtn.click();
+  await expect(readyText).toBeVisible({ timeout: 15000 });
+}
+
 export async function knowlegeGraphGeneration(page) {
   await openCard(
     page,
