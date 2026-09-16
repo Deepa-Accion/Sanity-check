@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { DEFAULT_BASE_URL } from './dashboardPage.js';
 
 const USERNAME_SELECTOR = 'input[type="email"], input[name*="email" i], input[name*="username" i], input[autocomplete*="email" i], input[placeholder*="email" i], input[placeholder*="username" i]';
 const PASSWORD_SELECTOR = 'input[type="password"], input[name*="password" i], input[autocomplete*="current-password" i], input[placeholder*="password" i]';
@@ -8,7 +9,7 @@ export class LoginPage {
     this.page = page;
   }
 
-  async navigateToLogin(url = 'https://ai.accionbreeze.com/?page=1') {
+  async navigateToLogin(url = DEFAULT_BASE_URL) {
     await this.page.goto(url, { waitUntil: 'domcontentloaded' });
 
     const dashboardReady = this.page.getByRole('button', { name: /create project/i }).first();
