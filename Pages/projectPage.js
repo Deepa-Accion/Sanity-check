@@ -61,6 +61,259 @@ export async function projectHome(page, projectId = null) {
   await checkAndRecoverFromAppError(page);
 }
 
+async function openArtifactsMenu(page, projectId = null) {
+  const { menuArtifactsButton, searchArtifactsButton } = artifactLocators(page);
+
+  await menuArtifactsButton.click();
+
+  if (projectId) {
+    const expectedUrl = `${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}knowledge/${projectId}`;
+    await expect(page).toHaveURL(new RegExp(`^${expectedUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/)?$`));
+  }
+
+  await expect(searchArtifactsButton).toBeVisible({ timeout: 5000 });
+  await searchArtifactsButton.click();
+}
+
+async function ensureArtifactsPage(page, projectId) {
+  const { searchArtifactsButton } = artifactLocators(page);
+  const alreadyOnArtifactsPage = page.url().includes(`/knowledge/${projectId}`);
+  const artifactsSearchVisible = await searchArtifactsButton.isVisible({ timeout: 5000 }).catch(() => false);
+
+  if (!alreadyOnArtifactsPage && !artifactsSearchVisible) {
+      await openArtifactsMenu(page, projectId);
+  }
+}
+
+function artifactLocators(page) {
+  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
+  const generateFunctionalDialog = page.getByRole("dialog", { name: "Generate Functional" });
+  
+  return {
+    menuArtifactsButton: primaryNavigation.getByRole("button", { name: "Artifacts", exact: true }),
+    downloadDocumentationBtn: page.getByRole("button", { name: "Functional Documentation", exact: true }),
+    searchArtifactsButton: page.getByRole('textbox', { name: 'Search artifacts...', exact: true }),
+    generateFunctionalDialog: page.getByRole("dialog", { name: "Generate Functional" }),
+    dwnldArtifactPlainHtmlBtn: generateFunctionalDialog.getByRole("button", {
+      name: /Plain HTML Interactive single/i,
+    }).first(),
+    dwnldArtifactPlainMarkdownBtn: generateFunctionalDialog.getByRole("button", {
+      name: /Plain Markdown/i,
+    }).first(),
+    viewButton: page.getByRole("button", { name: "View", exact: true }).first(),
+    openHtmlInNewTabButton: page.getByRole('button', { name: 'Open', description: 'Open HTML in new tab' }),
+    secondOpenButton: page.getByRole('button', { name: 'Open' }).first(),
+    mrkdwnOpenButton: page.getByRole('button', { name: 'Open' }),
+    overlayCloseButton: page.locator('svg.lucide-x'),
+    copyButton: page.getByRole("button", { name: "Copy", exact: true }).first(),
+    secondaryCopyButton: page.locator('button:has(svg.lucide-clipboard-copy)'),
+    artifactsHeading: page.getByRole("heading", { name: "Artifacts", exact: true }),
+    refreshArtifactsButton: page.getByRole("button", { name: "Refresh artifacts", exact: true }),
+    artifactsTable: page.getByRole("table"),
+    
+    readyText: page.getByText("Ready", { exact: true })
+  };
+}
+
+export async function downloadArtifactPlainHtml(page, projectId) {
+  const {
+    downloadDocumentationBtn,
+    generateFunctionalDialog,
+    dwnldArtifactPlainHtmlBtn,
+    readyText,
+  } = artifactLocators(page);
+
+  await ensureArtifactsPage(page, projectId);
+
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 5000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 5000 });
+  await downloadDocumentationBtn.click();
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 5000 });
+
+  await expect(dwnldArtifactPlainHtmlBtn).toBeVisible({ timeout: 5000 });
+  await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 5000 });
+  await dwnldArtifactPlainHtmlBtn.click();
+  await expect(readyText).toBeVisible({ timeout: 10000 });
+}
+
+export async function validateDownloadedPlainHtml(page, projectName) {
+  const { viewButton, overlayCloseButton } = artifactLocators(page);
+  const expectedTitle = `Functional Specification - ${projectName}`;
+
+  await viewButton.click();
+  await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 10 seconds.`).toBeVisible({ timeout: 10000 });
+  
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
+  await overlayCloseButton.click();
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
+}
+
+export async function validateDownloadedPlainMarkdown(page, projectName) {
+  const { viewButton, overlayCloseButton } = artifactLocators(page);
+  const expectedTitle = `${projectName}`;
+
+  await viewButton.click();
+  await expect(page.getByText(/Functional Requirements Document/i).first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
+  await overlayCloseButton.click();
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
+}
+
+export async function validatePlainHtmlInNewWindow(page, projectName) {
+  const {
+    viewButton,
+    openHtmlInNewTabButton,
+    secondOpenButton,
+  } = artifactLocators(page);
+
+  const expectedTitle = `Functional Specification - ${projectName}`;
+
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
+  await viewButton.click();
+
+  await expect(
+    page.getByText(expectedTitle, { exact: false }),
+    `Custom Error: "${expectedTitle}" was not visible within 10 seconds.`
+  ).toBeVisible({ timeout: 10000 });
+
+  const openButtons = [
+    {
+      name: "Primary Open Button",
+      locator: openHtmlInNewTabButton,
+    },
+    {
+      name: "Secondary Open Button",
+      locator: secondOpenButton,
+    },
+  ];
+  
+  for (const { name, locator } of openButtons) {
+      
+      await expect(locator, `${name} is not visible`).toBeVisible({
+        timeout: 10000,
+      });
+
+      await expect(locator, `${name} is not enabled`).toBeEnabled({
+        timeout: 10000,
+      });
+
+      const [newPage] = await Promise.all([
+        page.context().waitForEvent("page", { timeout: 10000 }),
+        locator.click(),
+      ]);
+    await newPage.waitForLoadState("domcontentloaded");
+    await expect(newPage).toHaveURL(
+      /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
+    );
+    await expect(
+      newPage.getByText(projectName, { exact: false }).first()
+    ).toBeVisible({ timeout: 10000 });
+    await newPage.close();
+    await page.bringToFront();
+  }
+}
+
+export async function validatePlainMarkdownInNewWindow(page, projectName) {
+  const {
+    viewButton,
+    mrkdwnOpenButton,
+  } = artifactLocators(page);
+
+  const expectedTitle = `${projectName}`;
+
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
+  await viewButton.click();
+  await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
+  await expect(mrkdwnOpenButton).toBeVisible({ timeout: 10000 });
+  await expect(mrkdwnOpenButton).toBeEnabled();
+
+  const [newPage] = await Promise.all([
+    page.context().waitForEvent("page", { timeout: 10000 }),
+    mrkdwnOpenButton.click(),
+  ]);
+
+  await newPage.waitForLoadState("domcontentloaded");
+
+  await expect(newPage).toHaveURL(
+    /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
+  );
+
+  await expect(
+    newPage.getByText(projectName, { exact: false }).first()
+  ).toBeVisible({ timeout: 10000 });
+
+  await newPage.close();
+  await page.bringToFront();
+}
+
+export async function reviewArtifactsPage(page, projectId) {
+  const { artifactsHeading, refreshArtifactsButton, artifactsTable } = artifactLocators(page);
+
+  await openArtifactsMenu(page, projectId);
+  await expect(artifactsHeading).toBeVisible();
+  await expect(refreshArtifactsButton).toBeVisible();
+
+  const tableVisible = await artifactsTable.isVisible({ timeout: 2000 }).catch(() => false);
+  if (tableVisible) {
+    await expect(artifactsTable).toBeVisible();
+  }
+
+  await expect(page.getByRole("button", { name: /Functional Documentation/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gherkin", exact: true })).toBeVisible();
+
+}
+
+export async function validateCopyPlainHtmlContent(page, projectName, projectId) {
+  const { viewButton, copyButton, secondaryCopyButton, overlayCloseButton } = artifactLocators(page);
+  const targetOrigin = (process.env.TARGET_URL || "https://ai.accionbreeze.com/").replace(/\/$/, "");
+
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: targetOrigin,
+  });
+
+  const viewVisible = await viewButton.isVisible({ timeout: 5000 }).catch(() => false);
+  if (!viewVisible) {
+    await downloadArtifactPlainHtml(page, projectId);
+  }
+
+  await viewButton.click();
+
+  const copyButtons = [copyButton, secondaryCopyButton].filter(Boolean);
+
+  for (const candidateButton of copyButtons) {
+    await expect(candidateButton).toBeVisible({ timeout: 10000 });
+    await candidateButton.click();
+    await expect.poll(async () => {
+      const clipboardText = await page.evaluate(() => navigator.clipboard.readText().catch(() => ""));
+      return clipboardText.includes("<!DOCTYPE html>") && clipboardText.includes(projectName);
+    }, { timeout: 10000 }).toBeTruthy();
+  }
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 10000 });
+  await overlayCloseButton.click();
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 10000 });
+}
+
+export async function downloadArtifactPlainMarkdown(page, projectId) {
+  const {
+    downloadDocumentationBtn,
+    generateFunctionalDialog,
+    dwnldArtifactPlainMarkdownBtn,
+    readyText,
+  } = artifactLocators(page);
+
+  await ensureArtifactsPage(page, projectId);
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 10000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 10000 });
+  await downloadDocumentationBtn.click();
+
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 10000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeVisible({ timeout: 10000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 10000 });
+  await dwnldArtifactPlainMarkdownBtn.click();
+  await expect(readyText).toBeVisible({ timeout: 10000 });
+}
+
 export async function knowlegeGraphGeneration(page) {
   await openCard(
     page,
