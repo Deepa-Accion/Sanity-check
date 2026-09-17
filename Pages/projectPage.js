@@ -5,29 +5,46 @@ import { checkAndRecoverFromAppError } from "../tests/test-utils.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const TARGET_URL = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function artifactsUrlPattern(projectId) {
+  const uuidPattern = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  const projectIdentifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(projectId))
+    ? escapeRegExp(String(projectId))
+    : uuidPattern;
+
+  return new RegExp(`^${escapeRegExp(TARGET_URL)}knowledge/${projectIdentifier}(?:/)?$`, "i");
+}
+
+function artifactBlobUrlPattern() {
+  return new RegExp(`^blob:${escapeRegExp(new URL(TARGET_URL).origin)}/.+$`, "i");
+}
 
 export async function openAllCards(page, projectId = null) {
-  await knowlegeGraphGeneration(page);
+  await expect(await knowlegeGraphGeneration(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await knowledgeGraphVisualization(page);
+  await expect(await knowledgeGraphVisualization(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await architectureModeling(page);
+  await expect(await architectureModeling(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await exploreSemanticModel(page);
+  await expect(await exploreSemanticModel(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await codeOntology(page);
+  await expect(await codeOntology(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await userStory(page);
+  await expect(await userStory(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await aiChatAssistant(page);
+  await expect(await aiChatAssistant(page)).toBeTruthy();
   await projectHome(page, projectId);
-  await designGeneration(page);
+  await expect(await designGeneration(page)).toBeTruthy();
 }
 
 async function openCard(page, patterns, label) {
   await page.waitForLoadState("domcontentloaded");
   await page.keyboard.press("Escape").catch(() => {});
-  await page.waitForTimeout(500);
 
   const locators = [];
   for (const pattern of patterns) {
@@ -46,18 +63,16 @@ async function openCard(page, patterns, label) {
   }
 
   if (!target) {
-    console.warn(`[projectPage] ${label} card not found, skipping`);
-    return false;
+    throw new Error(`[projectPage] ${label} card not found`);
   }
 
   await expect(target).toBeVisible({ timeout: 10000 });
   await target.click();
-  await page.waitForTimeout(2000);
   return true;
 }
 
 export async function projectHome(page, projectId = null) {
-  await page.goto(`${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}dashboard/${projectId}`);
+  await page.goto(`${TARGET_URL}dashboard/${projectId}`, { waitUntil: "domcontentloaded" });
   await checkAndRecoverFromAppError(page);
 }
 
@@ -67,8 +82,7 @@ async function openArtifactsMenu(page, projectId = null) {
   await menuArtifactsButton.click();
 
   if (projectId) {
-    const expectedUrl = `${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}knowledge/${projectId}`;
-    await expect(page).toHaveURL(new RegExp(`^${expectedUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/)?$`));
+    await expect(page).toHaveURL(artifactsUrlPattern(projectId));
   }
 
   await expect(searchArtifactsButton).toBeVisible({ timeout: 5000 });
@@ -77,17 +91,22 @@ async function openArtifactsMenu(page, projectId = null) {
 
 async function ensureArtifactsPage(page, projectId) {
   const { searchArtifactsButton } = artifactLocators(page);
-  const alreadyOnArtifactsPage = page.url().includes(`/knowledge/${projectId}`);
-  const artifactsSearchVisible = await searchArtifactsButton.isVisible({ timeout: 5000 }).catch(() => false);
+  const alreadyOnArtifactsPage = /\/knowledge\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:[/?#]|$)/i.test(page.url());
 
-  if (!alreadyOnArtifactsPage && !artifactsSearchVisible) {
+  if (!alreadyOnArtifactsPage) {
       await openArtifactsMenu(page, projectId);
+  } else {
+    await expect(page).toHaveURL(artifactsUrlPattern(projectId));
   }
+
+  await expect(searchArtifactsButton).toBeVisible({ timeout: 10000 });
 }
 
 function artifactLocators(page) {
   const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
   const generateFunctionalDialog = page.getByRole("dialog", { name: "Generate Functional" });
+  const artifactPreviewDialog = page.getByRole("dialog").last();
+  const functionalArtifactRow = page.getByRole("row").filter({ hasText: "Functional Documentation" }).last();
   
   return {
     menuArtifactsButton: primaryNavigation.getByRole("button", { name: "Artifacts", exact: true }),
@@ -100,18 +119,18 @@ function artifactLocators(page) {
     dwnldArtifactPlainMarkdownBtn: generateFunctionalDialog.getByRole("button", {
       name: /Plain Markdown/i,
     }).first(),
-    viewButton: page.getByRole("button", { name: "View", exact: true }).first(),
-    openHtmlInNewTabButton: page.getByRole('button', { name: 'Open', description: 'Open HTML in new tab' }),
-    secondOpenButton: page.getByRole('button', { name: 'Open' }).first(),
-    mrkdwnOpenButton: page.getByRole('button', { name: 'Open' }),
+    artifactPreviewDialog,
+    viewButton: functionalArtifactRow.getByRole("button", { name: "View", exact: true }),
+    mrkdwnOpenButton: artifactPreviewDialog.getByRole("button", { name: "Open", exact: true }).first(),
     overlayCloseButton: page.locator('svg.lucide-x'),
     copyButton: page.getByRole("button", { name: "Copy", exact: true }).first(),
     secondaryCopyButton: page.locator('button:has(svg.lucide-clipboard-copy)'),
     artifactsHeading: page.getByRole("heading", { name: "Artifacts", exact: true }),
     refreshArtifactsButton: page.getByRole("button", { name: "Refresh artifacts", exact: true }),
     artifactsTable: page.getByRole("table"),
+    emptyArtifactsHeading: page.getByRole("heading", { name: "No artifacts yet", exact: true }),
     
-    readyText: page.getByText("Ready", { exact: true })
+    artifactReady: functionalArtifactRow.getByText("Ready", { exact: true })
   };
 }
 
@@ -120,7 +139,7 @@ export async function downloadArtifactPlainHtml(page, projectId) {
     downloadDocumentationBtn,
     generateFunctionalDialog,
     dwnldArtifactPlainHtmlBtn,
-    readyText,
+    artifactReady,
   } = artifactLocators(page);
 
   await ensureArtifactsPage(page, projectId);
@@ -133,7 +152,7 @@ export async function downloadArtifactPlainHtml(page, projectId) {
   await expect(dwnldArtifactPlainHtmlBtn).toBeVisible({ timeout: 5000 });
   await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 5000 });
   await dwnldArtifactPlainHtmlBtn.click();
-  await expect(readyText).toBeVisible({ timeout: 10000 });
+  await expect(artifactReady).toBeVisible({ timeout: 10000 });
 }
 
 export async function validateDownloadedPlainHtml(page, projectName) {
@@ -160,12 +179,8 @@ export async function validateDownloadedPlainMarkdown(page, projectName) {
   await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
-export async function validatePlainHtmlInNewWindow(page, projectName) {
-  const {
-    viewButton,
-    openHtmlInNewTabButton,
-    secondOpenButton,
-  } = artifactLocators(page);
+export async function validatePlainHtmlInNewWindow(page, projectId, projectName) {
+  const { viewButton, artifactPreviewDialog } = artifactLocators(page);
 
   const expectedTitle = `Functional Specification - ${projectName}`;
 
@@ -177,44 +192,28 @@ export async function validatePlainHtmlInNewWindow(page, projectName) {
     `Custom Error: "${expectedTitle}" was not visible within 10 seconds.`
   ).toBeVisible({ timeout: 10000 });
 
-  const openButtons = [
-    {
-      name: "Primary Open Button",
-      locator: openHtmlInNewTabButton,
-    },
-    {
-      name: "Secondary Open Button",
-      locator: secondOpenButton,
-    },
-  ];
-  
-  for (const { name, locator } of openButtons) {
-      
-      await expect(locator, `${name} is not visible`).toBeVisible({
-        timeout: 10000,
-      });
+  const openButtons = artifactPreviewDialog.getByRole("button", { name: "Open", exact: true });
+  await expect(openButtons).toHaveCount(2, { timeout: 10000 });
 
-      await expect(locator, `${name} is not enabled`).toBeEnabled({
-        timeout: 10000,
-      });
+  for (let index = 0; index < 2; index += 1) {
+      const locator = openButtons.nth(index);
+      await expect(locator, `Open button ${index + 1} is not visible`).toBeVisible({ timeout: 10000 });
+      await expect(locator, `Open button ${index + 1} is not enabled`).toBeEnabled({ timeout: 10000 });
 
       const [newPage] = await Promise.all([
         page.context().waitForEvent("page", { timeout: 10000 }),
         locator.click(),
       ]);
-    await newPage.waitForLoadState("domcontentloaded");
-    await expect(newPage).toHaveURL(
-      /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
-    );
-    await expect(
-      newPage.getByText(projectName, { exact: false }).first()
-    ).toBeVisible({ timeout: 10000 });
+    await newPage.waitForLoadState("domcontentloaded", { timeout: 10000 });
+    await expect(newPage).toHaveURL(artifactBlobUrlPattern());
+      await expect(newPage.locator("h1").first()).toHaveText("Functional Spec", { timeout: 10000 });
+      await expect(newPage.locator("body")).toContainText(projectName, { timeout: 10000 });
     await newPage.close();
     await page.bringToFront();
   }
 }
 
-export async function validatePlainMarkdownInNewWindow(page, projectName) {
+export async function validatePlainMarkdownInNewWindow(page, projectId, projectName) {
   const {
     viewButton,
     mrkdwnOpenButton,
@@ -224,40 +223,32 @@ export async function validatePlainMarkdownInNewWindow(page, projectName) {
 
   await expect(viewButton).toBeVisible({ timeout: 10000 });
   await viewButton.click();
-  await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
+  await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle, { timeout: 10000 });
   await expect(mrkdwnOpenButton).toBeVisible({ timeout: 10000 });
   await expect(mrkdwnOpenButton).toBeEnabled();
 
-  const [newPage] = await Promise.all([
-    page.context().waitForEvent("page", { timeout: 10000 }),
-    mrkdwnOpenButton.click(),
-  ]);
+  const popupPromise = page.context().waitForEvent("page", { timeout: 10000 });
+  await mrkdwnOpenButton.click();
+  const newPage = await popupPromise;
 
-  await newPage.waitForLoadState("domcontentloaded");
+  await newPage.waitForLoadState("domcontentloaded", { timeout: 10000 });
 
-  await expect(newPage).toHaveURL(
-    /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
-  );
-
-  await expect(
-    newPage.getByText(projectName, { exact: false }).first()
-  ).toBeVisible({ timeout: 10000 });
+  await expect(newPage).toHaveURL(artifactBlobUrlPattern());
+  await expect(newPage.locator("h1").first()).toHaveText(expectedTitle, { timeout: 10000 });
+  await expect(newPage.locator("body")).toContainText(/Functional Requirements Document/i, { timeout: 10000 });
 
   await newPage.close();
   await page.bringToFront();
 }
 
 export async function reviewArtifactsPage(page, projectId) {
-  const { artifactsHeading, refreshArtifactsButton, artifactsTable } = artifactLocators(page);
+  const { artifactsHeading, refreshArtifactsButton, artifactsTable, emptyArtifactsHeading } = artifactLocators(page);
 
   await openArtifactsMenu(page, projectId);
   await expect(artifactsHeading).toBeVisible();
   await expect(refreshArtifactsButton).toBeVisible();
 
-  const tableVisible = await artifactsTable.isVisible({ timeout: 2000 }).catch(() => false);
-  if (tableVisible) {
-    await expect(artifactsTable).toBeVisible();
-  }
+  await expect(artifactsTable.or(emptyArtifactsHeading)).toBeVisible({ timeout: 10000 });
 
   await expect(page.getByRole("button", { name: /Functional Documentation/i })).toBeVisible();
   await expect(page.getByRole("button", { name: "Gherkin", exact: true })).toBeVisible();
@@ -279,7 +270,26 @@ export async function validateCopyPlainHtmlContent(page, projectName, projectId)
 
   await viewButton.click();
 
-  const copyButtons = [copyButton, secondaryCopyButton].filter(Boolean);
+  await expect.poll(
+    () => copyButton.count().then((primaryCount) =>
+      secondaryCopyButton.count().then((secondaryCount) => primaryCount + secondaryCount)
+    ),
+    {
+      timeout: 10000,
+      message: "At least one HTML copy button should be rendered",
+    },
+  ).toBeGreaterThan(0);
+
+  const primaryCopyButtonCount = await copyButton.count();
+  const secondaryCopyButtonCount = await secondaryCopyButton.count();
+
+  const copyButtons = [];
+  if (primaryCopyButtonCount > 0) {
+    copyButtons.push(copyButton);
+  }
+  for (let index = 0; index < secondaryCopyButtonCount; index += 1) {
+    copyButtons.push(secondaryCopyButton.nth(index));
+  }
 
   for (const candidateButton of copyButtons) {
     await expect(candidateButton).toBeVisible({ timeout: 10000 });
@@ -299,7 +309,7 @@ export async function downloadArtifactPlainMarkdown(page, projectId) {
     downloadDocumentationBtn,
     generateFunctionalDialog,
     dwnldArtifactPlainMarkdownBtn,
-    readyText,
+    artifactReady,
   } = artifactLocators(page);
 
   await ensureArtifactsPage(page, projectId);
@@ -311,7 +321,7 @@ export async function downloadArtifactPlainMarkdown(page, projectId) {
   await expect(dwnldArtifactPlainMarkdownBtn).toBeVisible({ timeout: 10000 });
   await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 10000 });
   await dwnldArtifactPlainMarkdownBtn.click();
-  await expect(readyText).toBeVisible({ timeout: 10000 });
+  await expect(artifactReady).toBeVisible({ timeout: 10000 });
 }
 
 export async function knowlegeGraphGeneration(page) {
@@ -351,23 +361,7 @@ export async function downloadArtifacts(page, projectId) {
   await expect(plainHtmlButton).toBeVisible({ timeout: 30000 });
   await expect(plainHtmlButton).toBeEnabled({ timeout: 30000 });
   await plainHtmlButton.click();  
-  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 15000 });
-}
-
-export async function knowlegeGraphGeneration(page) {
-  await openCard(
-    page,
-    [/Generate\s+Functional\s+Model/i, /Functional\s+Personas/i, /Functional\s+Ontology/i],
-    "Functional generation"
-  );
-}
-
-export async function knowledgeGraphVisualization(page) {
-  await openCard(
-    page,
-    [/Knowledge\s+Graph/i, /Interactive\s+Neo4j\s+visualization/i],
-    "Knowledge graph visualization"
-  );
+  await expect(artifactLocators(page).artifactReady).toBeVisible({ timeout: 15000 });
 }
 
 export async function aiChatAssistant(page) {

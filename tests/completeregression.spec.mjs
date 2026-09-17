@@ -13,20 +13,11 @@ import {
 import {
   DEFAULT_BASE_URL,
   createProject,
-  selectProject,
 } from "../Pages/dashboardPage.js";
 
-import { openAllCards } from "../Pages/projectPage.js";
+import { CreateProjectPage } from "../Pages/createProjectFile.js";
 
-import {
-  uploadDocumentInKnowledgeBase,
-  uploadDocumentInAIChat,
-} from "../Pages/knowlegeBase.js";
-
-import { CreateProjectPage } from "../pages/createProjectFile.js";
-
-let projectName = "";
-let projectId = "";
+const createdProjectNames = new Set();
 
 
 const uniqueProjectName = (suffix) =>
@@ -52,12 +43,54 @@ async function openCreateProject(page) {
   return createProjectPage;
 }
 
+async function cleanupCreatedProjects(page) {
+  if (createdProjectNames.size === 0) {
+    return;
+  }
+
+  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+
+  for (const name of createdProjectNames) {
+    const projectCard = page.locator("article").filter({ hasText: name }).first();
+    if (!(await projectCard.isVisible({ timeout: 5000 }).catch(() => false))) {
+      continue;
+    }
+
+    const optionsButton = projectCard.getByRole("button", { name: /project options/i }).first();
+    await expect(optionsButton).toBeVisible({ timeout: 5000 });
+    await optionsButton.click();
+
+    const deleteAction = page
+      .getByRole("menuitem", { name: /delete/i })
+      .or(page.getByRole("button", { name: /delete/i }))
+      .last();
+    await expect(deleteAction).toBeVisible({ timeout: 5000 });
+    await deleteAction.click();
+
+    const confirmDelete = page
+      .getByRole("dialog")
+      .getByRole("button", { name: /delete|confirm/i })
+      .last();
+    if (await confirmDelete.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await confirmDelete.click();
+    }
+
+    await expect(projectCard).not.toBeVisible({ timeout: 10000 });
+  }
+
+  createdProjectNames.clear();
+}
+
 test.describe("Complete Regression Suite", () => {
   // Common URL navigation for every test
   test.beforeEach("Url Calling", async ({ page }) => {
     await page.goto(DEFAULT_BASE_URL, {
       waitUntil: "domcontentloaded",
     });
+  });
+
+  test.afterEach("Clean up created projects", async ({ page }) => {
+    await cleanupCreatedProjects(page);
   });
 
   test("@regression BreezeAI dashboard Launched", async ({ page }) => {
@@ -71,38 +104,43 @@ test.describe("Complete Regression Suite", () => {
   });
 
   test("@regression BreezeAI create project with tag", async ({ page }) => {
-    /* Steps involved. In Dashboard. Click on create project, give name, description and click on create */ 
-    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    projectName = `SanityCheck-${currentDateTime}-Automation`;
-    projectId = await createProject(page, projectName, projectName);
+    const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
+    const projectName = `SanityCheck-${currentDateTime}-Automation`;
+    const tag = `Playwright-${Date.now()}`;
+    const createProjectPage = await openCreateProject(page);
 
-    console.log("Project ID:", projectId);
-    console.log("Project Name:", projectName);
+    await createProjectPage.fillProjectName(projectName);
+    await createProjectPage.addTag(tag);
+    await expect(createProjectPage.getTagChip(tag)).toBeVisible({ timeout: 5000 });
+    await createProjectPage.save();
+    createdProjectNames.add(projectName);
+
+    await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 20000 });
   });
 
   test("@regression download artifact plain html from the artifacts page", async ({ page }) => {
     // Create new breeze project and download its plain html artifact  
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    projectName = `SanityCheck-${currentDateTime}-Automation`;
-    projectId = await createProject(page, projectName, projectName);
-    console.log("Project ID:", projectId);
-    console.log("Project Name:", projectName);
+    const projectName = `SanityCheck-${currentDateTime}-Automation`;
+    const projectId = await createProject(page, projectName);
+    createdProjectNames.add(projectName);
     await reviewArtifactsPage(page, projectId);
     await downloadArtifactPlainHtml(page, projectId);
     await validateCopyPlainHtmlContent(page, projectName, projectId);
     await validateDownloadedPlainHtml(page, projectName);
-    await validatePlainHtmlInNewWindow(page, projectName);
+    await validatePlainHtmlInNewWindow(page, projectId, projectName);
 
   });
 
   test("@regression download artifact plain markdown from the artifacts page", async ({ page }) => {
     // Create new breeze project and download its plain markdown artifact
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    projectName = `SanityCheck-${currentDateTime}-Automation`;
-    projectId = await createProject(page, projectName, projectName);
+    const projectName = `SanityCheck-${currentDateTime}-Automation`;
+    const projectId = await createProject(page, projectName);
+    createdProjectNames.add(projectName);
     await downloadArtifactPlainMarkdown(page, projectId);
     await validateDownloadedPlainMarkdown(page, projectName);
-    await validatePlainMarkdownInNewWindow(page, projectName);
+    await validatePlainMarkdownInNewWindow(page, projectId, projectName);
     
   });
   
@@ -146,7 +184,22 @@ test.describe("Complete Regression Suite", () => {
       })
       .toMatch(/dashboard/i);
 
-    expect(await createProjectPage.projectDestination(name)).toBeTruthy();
+    await expect.poll(
+      async () => {
+        const destination = await createProjectPage.projectDestination(name);
+        if (destination) {
+          return true;
+        }
+
+        await page.reload({ waitUntil: "domcontentloaded" });
+        return Boolean(await createProjectPage.projectDestination(name));
+      },
+      {
+        timeout: 30000,
+        intervals: [1000, 2000, 5000],
+        message: `Project "${name}" should appear on the dashboard after creation`,
+      },
+    ).toBe(true);
   });
 
   test("@regression handles a duplicate project name without modifying the original", async ({
@@ -174,14 +227,13 @@ test.describe("Complete Regression Suite", () => {
 
     await second.save();
 
-    const validationMessage = await second.visibleValidationMessage();
-
-    const destinationVisible = Boolean(await second.projectDestination(name));
-
-    expect(
-      validationMessage || destinationVisible,
-      "Duplicate handling should either show the observed error or complete the observed creation flow",
-    ).toBeTruthy();
+    await expect.poll(
+      () => second.visibleValidationMessage(),
+      {
+        timeout: 10000,
+        message: "Duplicate project creation should show a validation message",
+      },
+    ).not.toBe("");
   });
 
   test("@regression cancels the form without saving entered data", async ({
@@ -193,14 +245,7 @@ test.describe("Complete Regression Suite", () => {
 
     await createProjectPage.fillProjectName(name);
 
-    const cancelVisible = await createProjectPage.cancelButton
-      .isVisible()
-      .catch(() => false);
-
-    test.skip(
-      !cancelVisible,
-      "No Cancel, Close, or Back control was exposed by the form.",
-    );
+    await expect(createProjectPage.cancelButton.first()).toBeVisible({ timeout: 5000 });
 
     await createProjectPage.cancelOrClose();
 
