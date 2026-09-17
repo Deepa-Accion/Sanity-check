@@ -1,4 +1,6 @@
 import { test, expect } from "./auth.fixture.mjs";
+import { ProjectPage } from "../Pages/projectPage.js";
+import { CreateProjectPage } from "../Pages/createProjectFile.js";
 import { createProject, searchProject, deleteProject } from "../Pages/dashboardPage.js";
 import { withErrorCapture } from "./test-utils.mjs";
 
