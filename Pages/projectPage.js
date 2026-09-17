@@ -71,20 +71,17 @@ async function openArtifactsMenu(page, projectId = null) {
     await expect(page).toHaveURL(new RegExp(`^${expectedUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/)?$`));
   }
 
-  await expect(searchArtifactsButton).toBeVisible({ timeout: 30000 });
+  await expect(searchArtifactsButton).toBeVisible({ timeout: 5000 });
   await searchArtifactsButton.click();
 }
 
 async function ensureArtifactsPage(page, projectId) {
   const { searchArtifactsButton } = artifactLocators(page);
   const alreadyOnArtifactsPage = page.url().includes(`/knowledge/${projectId}`);
-  const artifactsSearchVisible = await searchArtifactsButton.isVisible({ timeout: 2000 }).catch(() => false);
+  const artifactsSearchVisible = await searchArtifactsButton.isVisible({ timeout: 5000 }).catch(() => false);
 
   if (!alreadyOnArtifactsPage && !artifactsSearchVisible) {
-    const retrySearchVisible = await searchArtifactsButton.isVisible({ timeout: 2000 }).catch(() => false);
-    if (!retrySearchVisible) {
       await openArtifactsMenu(page, projectId);
-    }
   }
 }
 
@@ -107,11 +104,9 @@ function artifactLocators(page) {
     openHtmlInNewTabButton: page.getByRole('button', { name: 'Open', description: 'Open HTML in new tab' }),
     secondOpenButton: page.getByRole('button', { name: 'Open' }).first(),
     mrkdwnOpenButton: page.getByRole('button', { name: 'Open' }),
-    htmlArtifactExitOverlay: page.getByRole("button", { name: /Close/i }).first(),
     overlayCloseButton: page.locator('svg.lucide-x'),
     copyButton: page.getByRole("button", { name: "Copy", exact: true }).first(),
     secondaryCopyButton: page.locator('button:has(svg.lucide-clipboard-copy)'),
-    artifactPreviewDialog: page.getByRole("dialog").filter({ hasText: /Functional Specification|Markdown/i }).first(),
     artifactsHeading: page.getByRole("heading", { name: "Artifacts", exact: true }),
     refreshArtifactsButton: page.getByRole("button", { name: "Refresh artifacts", exact: true }),
     artifactsTable: page.getByRole("table"),
@@ -130,15 +125,15 @@ export async function downloadArtifactPlainHtml(page, projectId) {
 
   await ensureArtifactsPage(page, projectId);
 
-  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 30000 });
-  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 30000 });
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 5000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 5000 });
   await downloadDocumentationBtn.click();
-  await expect(generateFunctionalDialog).toBeVisible({ timeout: 30000 });
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 5000 });
 
-  await expect(dwnldArtifactPlainHtmlBtn).toBeVisible({ timeout: 30000 });
-  await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 30000 });
+  await expect(dwnldArtifactPlainHtmlBtn).toBeVisible({ timeout: 5000 });
+  await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 5000 });
   await dwnldArtifactPlainHtmlBtn.click();
-  await expect(readyText).toBeVisible({ timeout: 15000 });
+  await expect(readyText).toBeVisible({ timeout: 10000 });
 }
 
 export async function validateDownloadedPlainHtml(page, projectName) {
@@ -146,11 +141,11 @@ export async function validateDownloadedPlainHtml(page, projectName) {
   const expectedTitle = `Functional Specification - ${projectName}`;
 
   await viewButton.click();
-  await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 30 seconds.`).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 10 seconds.`).toBeVisible({ timeout: 10000 });
   
-  await expect(overlayCloseButton).toBeEnabled({ timeout: 10000 });
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
   await overlayCloseButton.click();
-  await expect(overlayCloseButton).not.toBeVisible({ timeout: 10000 });
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
 export async function validateDownloadedPlainMarkdown(page, projectName) {
@@ -158,11 +153,11 @@ export async function validateDownloadedPlainMarkdown(page, projectName) {
   const expectedTitle = `${projectName}`;
 
   await viewButton.click();
-  await expect(page.getByText(/Functional Requirements Document/i).first()).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText(/Functional Requirements Document/i).first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
-  await expect(overlayCloseButton).toBeEnabled({ timeout: 10000 });
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
   await overlayCloseButton.click();
-  await expect(overlayCloseButton).not.toBeVisible({ timeout: 10000 });
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
 export async function validatePlainHtmlInNewWindow(page, projectName) {
@@ -174,38 +169,47 @@ export async function validatePlainHtmlInNewWindow(page, projectName) {
 
   const expectedTitle = `Functional Specification - ${projectName}`;
 
-  await expect(viewButton).toBeVisible({ timeout: 30000 });
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
   await viewButton.click();
 
   await expect(
     page.getByText(expectedTitle, { exact: false }),
-    `Custom Error: "${expectedTitle}" was not visible within 30 seconds.`
-  ).toBeVisible({ timeout: 30000 });
+    `Custom Error: "${expectedTitle}" was not visible within 10 seconds.`
+  ).toBeVisible({ timeout: 10000 });
 
   const openButtons = [
-    openHtmlInNewTabButton,
-    secondOpenButton,
-  ].filter(Boolean);
-  for (const candidateButton of openButtons) {
-    const buttonVisible = await candidateButton
-      .waitFor({ state: "visible", timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
+    {
+      name: "Primary Open Button",
+      locator: openHtmlInNewTabButton,
+    },
+    {
+      name: "Secondary Open Button",
+      locator: secondOpenButton,
+    },
+  ];
+  
+  for (const { name, locator } of openButtons) {
+      
+      await expect(locator, `${name} is not visible`).toBeVisible({
+        timeout: 10000,
+      });
 
-    if (!buttonVisible) {
-      continue;
-    }
-    const [newPage] = await Promise.all([
-      page.context().waitForEvent("page", { timeout: 15000 }),
-      candidateButton.click(),
-    ]);
+      await expect(locator, `${name} is not enabled`).toBeEnabled({
+        timeout: 10000,
+      });
+
+      await locator.highlight();
+      const [newPage] = await Promise.all([
+        page.context().waitForEvent("page", { timeout: 10000 }),
+        locator.click(),
+      ]);
     await newPage.waitForLoadState("domcontentloaded");
     await expect(newPage).toHaveURL(
       /^blob:https:\/\/ai\.accionbreeze\.com\/.+$/
     );
     await expect(
       newPage.getByText(projectName, { exact: false }).first()
-    ).toBeVisible({ timeout: 30000 });
+    ).toBeVisible({ timeout: 10000 });
     await newPage.close();
     await page.bringToFront();
   }
@@ -219,14 +223,14 @@ export async function validatePlainMarkdownInNewWindow(page, projectName) {
 
   const expectedTitle = `${projectName}`;
 
-  await expect(viewButton).toBeVisible({ timeout: 30000 });
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
   await viewButton.click();
   await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
-  await expect(mrkdwnOpenButton).toBeVisible({ timeout: 15000 });
+  await expect(mrkdwnOpenButton).toBeVisible({ timeout: 10000 });
   await expect(mrkdwnOpenButton).toBeEnabled();
 
   const [newPage] = await Promise.all([
-    page.context().waitForEvent("page", { timeout: 15000 }),
+    page.context().waitForEvent("page", { timeout: 10000 }),
     mrkdwnOpenButton.click(),
   ]);
 
@@ -238,7 +242,7 @@ export async function validatePlainMarkdownInNewWindow(page, projectName) {
 
   await expect(
     newPage.getByText(projectName, { exact: false }).first()
-  ).toBeVisible({ timeout: 30000 });
+  ).toBeVisible({ timeout: 10000 });
 
   await newPage.close();
   await page.bringToFront();
@@ -279,12 +283,12 @@ export async function validateCopyPlainHtmlContent(page, projectName, projectId)
   const copyButtons = [copyButton, secondaryCopyButton].filter(Boolean);
 
   for (const candidateButton of copyButtons) {
-    await expect(candidateButton).toBeVisible({ timeout: 15000 });
+    await expect(candidateButton).toBeVisible({ timeout: 10000 });
     await candidateButton.click();
     await expect.poll(async () => {
       const clipboardText = await page.evaluate(() => navigator.clipboard.readText().catch(() => ""));
       return clipboardText.includes("<!DOCTYPE html>") && clipboardText.includes(projectName);
-    }, { timeout: 15000 }).toBeTruthy();
+    }, { timeout: 10000 }).toBeTruthy();
   }
   await expect(overlayCloseButton).toBeEnabled({ timeout: 10000 });
   await overlayCloseButton.click();
@@ -300,15 +304,15 @@ export async function downloadArtifactPlainMarkdown(page, projectId) {
   } = artifactLocators(page);
 
   await ensureArtifactsPage(page, projectId);
-  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 30000 });
-  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 30000 });
+  await expect(downloadDocumentationBtn).toBeVisible({ timeout: 10000 });
+  await expect(downloadDocumentationBtn).toBeEnabled({ timeout: 10000 });
   await downloadDocumentationBtn.click();
 
-  await expect(generateFunctionalDialog).toBeVisible({ timeout: 30000 });
-  await expect(dwnldArtifactPlainMarkdownBtn).toBeVisible({ timeout: 30000 });
-  await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 30000 });
+  await expect(generateFunctionalDialog).toBeVisible({ timeout: 10000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeVisible({ timeout: 10000 });
+  await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 10000 });
   await dwnldArtifactPlainMarkdownBtn.click();
-  await expect(readyText).toBeVisible({ timeout: 15000 });
+  await expect(readyText).toBeVisible({ timeout: 10000 });
 }
 
 export async function knowlegeGraphGeneration(page) {
