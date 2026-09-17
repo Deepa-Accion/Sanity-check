@@ -198,7 +198,6 @@ export async function validatePlainHtmlInNewWindow(page, projectName) {
         timeout: 10000,
       });
 
-      await locator.highlight();
       const [newPage] = await Promise.all([
         page.context().waitForEvent("page", { timeout: 10000 }),
         locator.click(),
