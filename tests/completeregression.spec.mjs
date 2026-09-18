@@ -4,20 +4,41 @@ import {
   reviewArtifactsPage,
   validateCopyPlainHtmlContent,
   downloadArtifactPlainMarkdown,
-  validateDownloadedPlainHtml, 
+  validateDownloadedPlainHtml,
   validateDownloadedPlainMarkdown,
   validatePlainMarkdownInNewWindow,
-  validatePlainHtmlInNewWindow
+  validatePlainHtmlInNewWindow,
 } from "../Pages/projectPage.js";
-
 import {
   DEFAULT_BASE_URL,
   createProject,
+  searchProject,
+  trySearchProject,
+  clearProjectSearch,
+  waitForProjectVisible,
+  waitForProjectHidden,
+  openAuthorFilter,
+  selectAuthorFilter,
+  clearAuthorFilter,
+  getProjectAuthor,
+  getProjectListSummaryDetails,
+  getVisibleAuthorProjectCount,
+  openTagsFilter,
+  projectCard,
 } from "../Pages/dashboardPage.js";
+
+import { ProjectPage } from "../Pages/projectPage.js";
+import { DashboardPage } from "../Pages/dashboardPage.js";
 
 import { CreateProjectPage } from "../Pages/createProjectFile.js";
 
 const createdProjectNames = new Set();
+let currentTestProjectNames = new Set();
+
+function trackCreatedProject(projectName) {
+  createdProjectNames.add(projectName);
+  currentTestProjectNames.add(projectName);
+}
 
 
 const uniqueProjectName = (suffix) =>
@@ -43,57 +64,70 @@ async function openCreateProject(page) {
   return createProjectPage;
 }
 
-async function cleanupCreatedProjects(page) {
-  if (createdProjectNames.size === 0) {
+async function cleanupCreatedProjects(page, shouldDelete) {
+  const projectsToDelete = new Set(currentTestProjectNames);
+  currentTestProjectNames.clear();
+
+  if (!shouldDelete || projectsToDelete.size === 0) {
+    for (const name of projectsToDelete) {
+      createdProjectNames.delete(name);
+    }
     return;
   }
 
-  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
-
-  for (const name of createdProjectNames) {
-    const projectCard = page.locator("article").filter({ hasText: name }).first();
-    if (!(await projectCard.isVisible({ timeout: 5000 }).catch(() => false))) {
-      continue;
-    }
-
-    const optionsButton = projectCard.getByRole("button", { name: /project options/i }).first();
-    await expect(optionsButton).toBeVisible({ timeout: 5000 });
-    await optionsButton.click();
-
-    const deleteAction = page
-      .getByRole("menuitem", { name: /delete/i })
-      .or(page.getByRole("button", { name: /delete/i }))
-      .last();
-    await expect(deleteAction).toBeVisible({ timeout: 5000 });
-    await deleteAction.click();
-
-    const confirmDelete = page
-      .getByRole("dialog")
-      .getByRole("button", { name: /delete|confirm/i })
-      .last();
-    if (await confirmDelete.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await confirmDelete.click();
-    }
-
-    await expect(projectCard).not.toBeVisible({ timeout: 10000 });
+  if (page.isClosed()) {
+    throw new Error("Cannot clean up tracked projects because the page is closed");
   }
 
-  createdProjectNames.clear();
+  try {
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+  } catch (error) {
+    throw new Error("Could not navigate to the dashboard for project cleanup", { cause: error });
+  }
+
+  for (const name of projectsToDelete) {
+    try {
+      await searchProject(page, name);
+    } catch (error) {
+      const dashboard = new DashboardPage(page);
+      await dashboard.openProjectTab('Archived');
+      const archivedProjectVisible = await trySearchProject(page, name);
+      if (archivedProjectVisible) {
+        await dashboard.restoreProject(name, { confirm: true });
+        await dashboard.openProjectTab('My Projects');
+        await searchProject(page, name);
+      } else {
+        console.warn(`[cleanup] Project "${name}" was not found in My Projects or Archived; it may already be deleted.`);
+        await dashboard.openProjectTab('My Projects');
+      }
+    }
+
+    if (await trySearchProject(page, name)) {
+      await new ProjectPage(page).deleteOrArchiveProject(name, { confirm: true });
+    }
+  }
+
+  for (const name of projectsToDelete) {
+    createdProjectNames.delete(name);
+  }
 }
 
 test.describe("Complete Regression Suite", () => {
+  test.describe.configure({ mode: "serial" });
+
   // Common URL navigation for every test
   test.beforeEach("Url Calling", async ({ page }) => {
+    currentTestProjectNames = new Set();
     await page.goto(DEFAULT_BASE_URL, {
       waitUntil: "domcontentloaded",
     });
   });
 
-  test.afterEach("Clean up created projects", async ({ page }) => {
-    await cleanupCreatedProjects(page);
+  test.afterEach("Clean up passed test projects", async ({ page }, testInfo) => {
+    await cleanupCreatedProjects(page, testInfo.status === "passed");
   });
 
-  test("@regression BreezeAI dashboard Launched", async ({ page }) => {
+  test("@regression Verify BreezeAI dashboard loads successfully", async ({ page }) => {
     // beforeEach() has already opened the application
 
     const title = await page.title();
@@ -103,7 +137,7 @@ test.describe("Complete Regression Suite", () => {
     expect(title).toMatch(/Breeze\.AI/i);
   });
 
-  test("@regression BreezeAI create project with tag", async ({ page }) => {
+  test("@regression Verify a project can be created with a tag", async ({ page }) => {
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
     const tag = `Playwright-${Date.now()}`;
@@ -113,17 +147,17 @@ test.describe("Complete Regression Suite", () => {
     await createProjectPage.addTag(tag);
     await expect(createProjectPage.getTagChip(tag)).toBeVisible({ timeout: 5000 });
     await createProjectPage.save();
-    createdProjectNames.add(projectName);
+    trackCreatedProject(projectName);
 
     await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 20000 });
   });
 
-  test("@regression download artifact plain html from the artifacts page", async ({ page }) => {
+  test("@regression Verify a plain HTML artifact can be downloaded and validated", async ({ page }) => {
     // Create new breeze project and download its plain html artifact  
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
     const projectId = await createProject(page, projectName);
-    createdProjectNames.add(projectName);
+    trackCreatedProject(projectName);
     await reviewArtifactsPage(page, projectId);
     await downloadArtifactPlainHtml(page, projectId);
     await validateCopyPlainHtmlContent(page, projectName, projectId);
@@ -132,19 +166,20 @@ test.describe("Complete Regression Suite", () => {
 
   });
 
-  test("@regression download artifact plain markdown from the artifacts page", async ({ page }) => {
+  test("@regression Verify a plain Markdown artifact can be downloaded and validated", async ({ page }) => {
     // Create new breeze project and download its plain markdown artifact
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
     const projectId = await createProject(page, projectName);
-    createdProjectNames.add(projectName);
+    trackCreatedProject(projectName);
     await downloadArtifactPlainMarkdown(page, projectId);
     await validateDownloadedPlainMarkdown(page, projectName);
     await validatePlainMarkdownInNewWindow(page, projectId, projectName);
     
   });
   
-  test("@regression rejects an empty project name without creating a project", async ({
+  
+  test("@regression Verify a project cannot be created without a name", async ({
     page,
   }) => {
     const createProjectPage = await openCreateProject(page);
@@ -154,7 +189,7 @@ test.describe("Complete Regression Suite", () => {
     await expect(createProjectPage.saveButton).toBeDisabled();
   });
 
-  test("@regression rejects a whitespace-only project name", async ({
+  test("@regression Verify a project cannot be created with a whitespace-only name", async ({
     page,
   }) => {
     const createProjectPage = await openCreateProject(page);
@@ -167,7 +202,7 @@ test.describe("Complete Regression Suite", () => {
     await expect(createProjectPage.saveButton).toBeDisabled();
   });
 
-  test("@regression supports special characters in a project name", async ({
+  test("@regression Verify project names support special characters", async ({
     page,
   }) => {
     const name = `Playwright & QA / ${Date.now()}`;
@@ -200,9 +235,245 @@ test.describe("Complete Regression Suite", () => {
         message: `Project "${name}" should appear on the dashboard after creation`,
       },
     ).toBe(true);
+    trackCreatedProject(name);
   });
 
-  test("@regression handles a duplicate project name without modifying the original", async ({
+  test("@regression Verify project search filters results by name", async ({ page }) => {
+    const projectOne = `SanityCheck-Search-${Date.now()}-A`;
+    const projectTwo = `SanityCheck-Search-${Date.now()}-B`;
+
+    await createProject(page, projectOne);
+    trackCreatedProject(projectOne);
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await createProject(page, projectTwo);
+    trackCreatedProject(projectTwo);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectOne);
+    const searchInput = page.getByRole("textbox", { name: /search projects/i }).first();
+    await expect(searchInput).toBeVisible({ timeout: 20000 });
+    await searchInput.fill(projectOne);
+
+    await waitForProjectVisible(page, projectOne, 30000);
+    await expect(page.getByText(projectTwo, { exact: true })).toHaveCount(0);
+
+    await clearProjectSearch(page);
+    await waitForProjectVisible(page, projectOne, 30000);
+    await waitForProjectVisible(page, projectTwo, 30000);
+  });
+
+  test("@regression Verify the Author filter narrows project results", async ({ page }) => {
+    const projectName = `SanityCheck-Author-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    const authorName = await getProjectAuthor(page, projectName);
+    await clearProjectSearch(page);
+    const unfilteredSummary = await getProjectListSummaryDetails(page);
+    await openAuthorFilter(page);
+    await selectAuthorFilter(page, authorName);
+
+    const authorSummary = await getProjectListSummaryDetails(page);
+    const visibleAuthorProjectCount = await getVisibleAuthorProjectCount(page, authorName);
+    const displayedRangeCount = authorSummary.last - authorSummary.first + 1;
+    expect(authorSummary.total).toBeGreaterThan(0);
+    expect(visibleAuthorProjectCount).toBe(displayedRangeCount);
+    expect(authorSummary.total).toBeGreaterThanOrEqual(visibleAuthorProjectCount);
+
+    const searchInput = page.getByRole("textbox", { name: /search projects/i }).first();
+    await searchInput.fill(projectName);
+    await waitForProjectVisible(page, projectName, 30000);
+    await expect(page.getByText(projectName, { exact: true }).first()).toBeVisible({ timeout: 20000 });
+
+    await clearProjectSearch(page);
+    await clearAuthorFilter(page);
+    const restoredSummary = await getProjectListSummaryDetails(page);
+    expect(restoredSummary.total).toBeGreaterThanOrEqual(unfilteredSummary.total);
+    await expect(page.getByRole('button', { name: /^author$/i })).toBeVisible();
+  });
+
+  test("@regression Verify the Tags filter shows the tagged project", async ({ page }) => {
+    const projectName = `SanityCheck-Tags-${Date.now()}`;
+    const tagName = `Playwright-Filter-${Date.now()}`;
+
+    const createProjectPage = await openCreateProject(page);
+    await createProjectPage.fillProjectName(projectName);
+    await createProjectPage.addTag(tagName);
+    await expect(createProjectPage.getTagChip(tagName)).toBeVisible({ timeout: 5000 });
+    await createProjectPage.save();
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    await openTagsFilter(page, tagName);
+
+    await waitForProjectVisible(page, projectName, 30000);
+    await expect(page.getByText(projectName, { exact: true }).first()).toBeVisible({ timeout: 20000 });
+  });
+
+  test("@regression Verify a project can be favorited, unfavorited, archived, restored, and deleted", async ({ page }) => {
+    const projectName = `SanityCheck-Favourite-Restore-${Date.now()}`;
+    const dashboard = new DashboardPage(page);
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+    await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await dashboard.openProjectTab('My Projects');
+    await searchProject(page, projectName);
+    await dashboard.clickProjectFavourite(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await dashboard.openProjectTab('My Projects');
+    await searchProject(page, projectName);
+    await dashboard.openProjectTab('Favourites');
+    await dashboard.showProjectInCurrentList(projectName);
+    await expect(dashboard.projectCard(projectName)).toBeVisible();
+    await dashboard.clickProjectFavourite(projectName);
+
+    await clearProjectSearch(page);
+    const favouriteStillVisible = await trySearchProject(page, projectName);
+    if (favouriteStillVisible) {
+      await waitForProjectHidden(page, projectName);
+    }
+
+    await dashboard.openProjectTab('My Projects');
+    await dashboard.showProjectInCurrentList(projectName);
+    await expect(dashboard.projectCard(projectName)).toBeVisible();
+    await new ProjectPage(page).deleteOrArchiveProject(projectName, { confirm: true });
+
+    await dashboard.openProjectTab('Archived');
+    await dashboard.showProjectInCurrentList(projectName);
+    await dashboard.restoreProject(projectName, { confirm: true });
+    await dashboard.openProjectTab('My Projects');
+    await dashboard.showProjectInCurrentList(projectName);
+    await expect(dashboard.projectCard(projectName)).toBeVisible();
+    await new ProjectPage(page).deleteOrArchiveProject(projectName, { confirm: true });
+  });
+
+  test("@regression Verify canceling restore keeps a project archived", async ({ page }) => {
+    const projectName = `SanityCheck-Favourite-Restore-Cancel-${Date.now()}`;
+    const dashboard = new DashboardPage(page);
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+    await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await dashboard.openProjectTab('My Projects');
+    await searchProject(page, projectName);
+    await dashboard.clickProjectFavourite(projectName);
+    await dashboard.openProjectTab('Favourites');
+    await dashboard.showProjectInCurrentList(projectName);
+    await expect(dashboard.projectCard(projectName)).toBeVisible();
+    await dashboard.clickProjectFavourite(projectName);
+    await clearProjectSearch(page);
+    const favouriteStillVisible = await trySearchProject(page, projectName);
+    if (favouriteStillVisible) {
+      await waitForProjectHidden(page, projectName);
+    }
+
+    await dashboard.openProjectTab('My Projects');
+  await dashboard.showProjectInCurrentList(projectName);
+    await new ProjectPage(page).deleteOrArchiveProject(projectName, { confirm: true });
+    await dashboard.openProjectTab('Archived');
+    await dashboard.showProjectInCurrentList(projectName);
+    await dashboard.restoreProject(projectName, { confirm: false });
+    await expect(dashboard.projectCard(projectName)).toBeVisible();
+
+    await dashboard.openProjectTab('My Projects');
+    await expect(dashboard.projectCard(projectName)).not.toBeVisible({ timeout: 10000 });
+  });
+
+  test("@regression Verify the project card displays the project name", async ({ page }) => {
+    const projectName = `SanityCheck-Metadata-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    await waitForProjectVisible(page, projectName, 30000);
+    const card = projectCard(page, projectName);
+    await expect(card).toBeVisible({ timeout: 20000 });
+    await expect(card).toContainText(projectName);
+  });
+
+  test("@regression Verify clicking a project card opens the project dashboard", async ({ page }) => {
+    const projectName = `SanityCheck-Open-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    await waitForProjectVisible(page, projectName, 30000);
+    await page.getByText(projectName, { exact: true }).first().click();
+
+    await expect(page).toHaveURL(/dashboard\//i, { timeout: 20000 });
+  });
+
+  test("@regression Verify the Project Options menu opens from a project card", async ({ page }) => {
+    const projectName = `SanityCheck-Menu-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    const projectPage = new ProjectPage(page);
+    const menu = await projectPage.openProjectOptionsMenu(projectName);
+    await expect(menu).toBeVisible({ timeout: 15000 });
+  });
+
+  test("@regression Verify canceling Delete or Archive keeps the project", async ({ page }) => {
+    const projectName = `SanityCheck-Cancel-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    const projectPage = new ProjectPage(page);
+    const action = await projectPage.deleteOrArchiveProject(projectName, { confirm: false });
+    expect(action).toBe(false);
+    await expect(projectCard(page, projectName)).toBeVisible({ timeout: 20000 });
+  });
+
+  test("@regression Verify confirming Delete or Archive removes the project", async ({ page }) => {
+    const projectName = `SanityCheck-Delete-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    await searchProject(page, projectName);
+    const projectPage = new ProjectPage(page);
+    await projectPage.deleteOrArchiveProject(projectName, { confirm: true });
+    await expect(projectCard(page, projectName)).toHaveCount(0);
+  });
+
+  test("@regression Verify a no-match project search shows the empty state", async ({ page }) => {
+    const needle = `zzz-no-project-${Date.now()}`;
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    const searchInput = page.getByRole("textbox", { name: /search projects/i }).first();
+    await expect(searchInput).toBeVisible({ timeout: 20000 });
+    await searchInput.fill(needle);
+
+    await expect(page.getByText("No projects found.", { exact: true })).toBeVisible({ timeout: 20000 });
+  });
+
+  test("@regression Verify a deleted project remains absent after reload", async ({ page }) => {
+    const projectName = `SanityCheck-Refresh-${Date.now()}`;
+    await createProject(page, projectName);
+    trackCreatedProject(projectName);
+
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+    const projectPage = new ProjectPage(page);
+    await projectPage.deleteOrArchiveProject(projectName, { confirm: true });
+    await expect(projectCard(page, projectName)).toHaveCount(0);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(projectCard(page, projectName)).toHaveCount(0);
+  });
+
+  test("@regression Verify a duplicate project name is rejected without changing the original", async ({
     page,
   }) => {
     const name = uniqueProjectName("duplicate");
@@ -213,6 +484,7 @@ test.describe("Complete Regression Suite", () => {
     await first.fillProjectName(name);
 
     await first.save();
+    trackCreatedProject(name);
 
     await expect
       .poll(() => page.url(), {
@@ -234,9 +506,13 @@ test.describe("Complete Regression Suite", () => {
         message: "Duplicate project creation should show a validation message",
       },
     ).not.toBe("");
+
+    await second.cancelOrClose();
+    await searchProject(page, name);
+    await expect(projectCard(page, name)).toBeVisible({ timeout: 20000 });
   });
 
-  test("@regression cancels the form without saving entered data", async ({
+  test("@regression Verify canceling project creation does not save the project", async ({
     page,
   }) => {
     const createProjectPage = await openCreateProject(page);
@@ -258,4 +534,5 @@ test.describe("Complete Regression Suite", () => {
     ).toBeVisible();
   });
 });
+
 
