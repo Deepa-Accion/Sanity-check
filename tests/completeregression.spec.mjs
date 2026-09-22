@@ -7,8 +7,11 @@ import {
   validateDownloadedPlainHtml, 
   validateDownloadedPlainMarkdown,
   validatePlainMarkdownInNewWindow,
-  validatePlainHtmlInNewWindow
-} from "../Pages/projectPage.js";
+  validatePlainHtmlInNewWindow,
+  validateCopyPlainMarkdownContent,
+  validateMultipleViewButtons,
+  searchAndValidateSingleRecord,
+} from "../Pages/artifactsPage.js";
 
 import {
   DEFAULT_BASE_URL,
@@ -118,7 +121,7 @@ test.describe("Complete Regression Suite", () => {
     await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 20000 });
   });
 
-  test("@regression download artifact plain html from the artifacts page", async ({ page }) => {
+  test("@regression @artifact download artifact plain html from the artifacts page", async ({ page }) => {
     // Create new breeze project and download its plain html artifact  
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
@@ -132,7 +135,7 @@ test.describe("Complete Regression Suite", () => {
 
   });
 
-  test("@regression download artifact plain markdown from the artifacts page", async ({ page }) => {
+  test("@regression @artifact download artifact plain markdown from the artifacts page", async ({ page }) => {
     // Create new breeze project and download its plain markdown artifact
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
@@ -140,8 +143,41 @@ test.describe("Complete Regression Suite", () => {
     createdProjectNames.add(projectName);
     await downloadArtifactPlainMarkdown(page, projectId);
     await validateDownloadedPlainMarkdown(page, projectName);
+    await validateCopyPlainMarkdownContent(page, projectName, projectId);
     await validatePlainMarkdownInNewWindow(page, projectId, projectName);
     
+  });
+  
+  test("@regression @artifact download artifact when already one artifact exists", async ({ page }) => {
+  /* Create new breeze project and download multiple artifacts from the artifacts page. 
+  Download plain markdown when more or more artifacts already exists. Validate the downloaded artifacts. */
+    
+    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
+    const projectName = `SanityCheck-${currentDateTime}-Automation`;
+    const projectId = await createProject(page, projectName);
+    await downloadArtifactPlainHtml(page, projectId);
+    await validateDownloadedPlainHtml(page, projectName);
+    await downloadArtifactPlainMarkdown(page, projectId);
+    await validateMultipleViewButtons(page);
+    await validateDownloadedPlainMarkdown(page, projectName);
+    console.log(`✅ ${test.info().title} passed`);
+  });
+
+  test("@regression @artifact validate search functionality on artifacts page", async ({ page }) => {
+  /* Create new breeze project and download multiple artifacts from the artifacts page. 
+  Download plain html when one or more artifacts already exists. Validate the downloaded artifacts and
+  validate the search functionality on artifacts page */
+    
+    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
+    const projectName = `SanityCheck-${currentDateTime}-Automation`;
+    const projectId = await createProject(page, projectName, projectName);
+    await downloadArtifactPlainMarkdown(page, projectId);
+    await validateDownloadedPlainMarkdown(page, projectName);
+    await downloadArtifactPlainHtml(page, projectId);
+    await validateMultipleViewButtons(page);
+    await validateDownloadedPlainHtml(page, projectName);
+    await searchAndValidateSingleRecord(page);
+
   });
   
   test("@regression rejects an empty project name without creating a project", async ({
