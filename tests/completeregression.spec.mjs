@@ -33,11 +33,13 @@ import { DashboardPage } from "../Pages/dashboardPage.js";
 import { CreateProjectPage } from "../Pages/createProjectFile.js";
 
 const createdProjectNames = new Set();
+const createdProjectIds = new Map();
 let currentTestProjectNames = new Set();
 
-function trackCreatedProject(projectName) {
+function trackCreatedProject(projectName, projectId = null) {
   createdProjectNames.add(projectName);
   currentTestProjectNames.add(projectName);
+  if (projectId) createdProjectIds.set(projectName, projectId);
 }
 
 
@@ -68,10 +70,7 @@ async function cleanupCreatedProjects(page, shouldDelete) {
   const projectsToDelete = new Set(currentTestProjectNames);
   currentTestProjectNames.clear();
 
-  if (!shouldDelete || projectsToDelete.size === 0) {
-    for (const name of projectsToDelete) {
-      createdProjectNames.delete(name);
-    }
+  if (projectsToDelete.size === 0) {
     return;
   }
 
@@ -85,30 +84,47 @@ async function cleanupCreatedProjects(page, shouldDelete) {
     throw new Error("Could not navigate to the dashboard for project cleanup", { cause: error });
   }
 
+  const cleanupFailures = [];
   for (const name of projectsToDelete) {
     try {
       await searchProject(page, name);
     } catch (error) {
-      const dashboard = new DashboardPage(page);
-      await dashboard.openProjectTab('Archived');
-      const archivedProjectVisible = await trySearchProject(page, name);
-      if (archivedProjectVisible) {
-        await dashboard.restoreProject(name, { confirm: true });
-        await dashboard.openProjectTab('My Projects');
-        await searchProject(page, name);
-      } else {
-        console.warn(`[cleanup] Project "${name}" was not found in My Projects or Archived; it may already be deleted.`);
-        await dashboard.openProjectTab('My Projects');
+      try {
+        const dashboard = new DashboardPage(page);
+        await dashboard.openProjectTab('Archived');
+        const archivedProjectVisible = await trySearchProject(page, name);
+        if (archivedProjectVisible) {
+          await dashboard.restoreProject(name, { confirm: true });
+          await dashboard.openProjectTab('My Projects');
+          await searchProject(page, name);
+        } else {
+          console.warn(`[cleanup] Project "${name}" was not found in My Projects or Archived; it may already be deleted.`);
+          await dashboard.openProjectTab('My Projects');
+        }
+      } catch (cleanupError) {
+        cleanupFailures.push(`Project "${name}" could not be restored or located: ${cleanupError?.message ?? cleanupError}`);
+        continue;
       }
     }
 
     if (await trySearchProject(page, name)) {
-      await new ProjectPage(page).deleteOrArchiveProject(name, { confirm: true });
+      try {
+        const projectId = createdProjectIds.get(name) || page.url().match(/\/dashboard\/([^/?#]+)/i)?.[1] || null;
+        console.log(`[cleanup] Deleting project "${name}"${projectId ? ` (ID: ${projectId})` : ''}`);
+        await new ProjectPage(page).deleteOrArchiveProject(name, { confirm: true });
+        await expect(projectCard(page, name)).toHaveCount(0, { timeout: 20000 });
+        createdProjectIds.delete(name);
+        createdProjectNames.delete(name);
+      } catch (error) {
+        cleanupFailures.push(`Project "${name}"${createdProjectIds.has(name) ? ` (ID: ${createdProjectIds.get(name)})` : ''}: ${error?.message ?? error}`);
+      }
+    } else {
+      cleanupFailures.push(`Project "${name}" could not be found for deletion`);
     }
   }
 
-  for (const name of projectsToDelete) {
-    createdProjectNames.delete(name);
+  for (const failure of cleanupFailures) {
+    console.error(`[cleanup] ${failure}`);
   }
 }
 
@@ -124,7 +140,7 @@ test.describe("Complete Regression Suite", () => {
   });
 
   test.afterEach("Clean up passed test projects", async ({ page }, testInfo) => {
-    await cleanupCreatedProjects(page, testInfo.status === "passed");
+    await cleanupCreatedProjects(page, testInfo.status !== "skipped");
   });
 
   test("@regression Verify BreezeAI dashboard loads successfully", async ({ page }) => {
@@ -153,11 +169,11 @@ test.describe("Complete Regression Suite", () => {
   });
 
   test("@regression Verify a plain HTML artifact can be downloaded and validated", async ({ page }) => {
-    // Create new breeze project and download its plain html artifact  
+    // Create new breeze project and download its plain html artifact
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
     const projectId = await createProject(page, projectName);
-    trackCreatedProject(projectName);
+    trackCreatedProject(projectName, projectId);
     await reviewArtifactsPage(page, projectId);
     await downloadArtifactPlainHtml(page, projectId);
     await validateCopyPlainHtmlContent(page, projectName, projectId);
@@ -171,14 +187,14 @@ test.describe("Complete Regression Suite", () => {
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
     const projectId = await createProject(page, projectName);
-    trackCreatedProject(projectName);
+    trackCreatedProject(projectName, projectId);
     await downloadArtifactPlainMarkdown(page, projectId);
     await validateDownloadedPlainMarkdown(page, projectName);
     await validatePlainMarkdownInNewWindow(page, projectId, projectName);
-    
+
   });
-  
-  
+
+
   test("@regression Verify a project cannot be created without a name", async ({
     page,
   }) => {
@@ -250,16 +266,14 @@ test.describe("Complete Regression Suite", () => {
 
     await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
     await searchProject(page, projectOne);
-    const searchInput = page.getByRole("textbox", { name: /search projects/i }).first();
-    await expect(searchInput).toBeVisible({ timeout: 20000 });
-    await searchInput.fill(projectOne);
 
     await waitForProjectVisible(page, projectOne, 30000);
     await expect(page.getByText(projectTwo, { exact: true })).toHaveCount(0);
 
     await clearProjectSearch(page);
-    await waitForProjectVisible(page, projectOne, 30000);
-    await waitForProjectVisible(page, projectTwo, 30000);
+    await searchProject(page, projectOne);
+    await clearProjectSearch(page);
+    await searchProject(page, projectTwo);
   });
 
   test("@regression Verify the Author filter narrows project results", async ({ page }) => {

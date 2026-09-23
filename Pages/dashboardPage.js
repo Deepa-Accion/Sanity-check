@@ -43,12 +43,31 @@ export async function getProjectListSummaryDetails(page) {
 export async function getProjectAuthor(page, projectName) {
   const card = projectCard(page, projectName);
   await expect(card).toBeVisible({ timeout: 20000 });
+  const authorLabel = card.getByText(/^author\s*:?$/i).first();
+  if (await authorLabel.count()) {
+    const authorContainer = authorLabel.locator('..');
+    const containerLines = (await authorContainer.innerText())
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const inlineAuthor = containerLines.join(' ').match(/^author\s*:\s*(.+)$/i);
+    if (inlineAuthor?.[1]) {
+      return inlineAuthor[1].trim();
+    }
+    const labelIndex = containerLines.findIndex((line) => /^author\s*:?$/i.test(line));
+    if (labelIndex >= 0 && containerLines[labelIndex + 1]) {
+      return containerLines[labelIndex + 1];
+    }
+  }
+
   const lines = (await card.innerText())
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const authorIndex = lines.findIndex((line) => /^author$/i.test(line));
-  const username = authorIndex >= 0 ? lines[authorIndex + 1] : '';
+  const inlineAuthor = lines.find((line) => /^author\s*:\s*\S/i.test(line))
+    ?.replace(/^author\s*:\s*/i, '').trim();
+  const authorIndex = lines.findIndex((line) => /^author\s*:?$/i.test(line));
+  const username = inlineAuthor || (authorIndex >= 0 ? lines[authorIndex + 1] : '');
 
   if (!username) {
     throw new Error(`Could not read the Author from project card: ${projectName}`);
@@ -105,6 +124,8 @@ export async function openTagsFilter(page, tagName) {
   const option = page.locator('[role="menuitem"], [role="option"], button, [role="listbox"]').filter({ hasText: new RegExp(escapedTagName, 'i') }).first();
   await expect(option).toBeVisible({ timeout: 10000 });
   await option.click();
+  await page.waitForTimeout(1000);
+  await page.keyboard.press('Escape');
 }
 
 export async function projectCardMetadata(page, projectName) {
@@ -398,17 +419,20 @@ export class DashboardPage {
     await expect(restoreButton).toBeVisible({ timeout: 10000 });
     await restoreButton.click();
 
-    const confirmation = card.getByText(/restore.*to active projects/i).first();
+    const confirmation = this.page
+      .locator('[role="dialog"], [role="alertdialog"], article')
+      .filter({ hasText: /restore.*to active projects/i })
+      .first();
     await expect(confirmation).toBeVisible({ timeout: 10000 });
     await expect(confirmation).toContainText(projectName);
 
     if (!confirm) {
-      await card.getByRole('button', { name: /cancel/i }).click();
+      await confirmation.getByRole('button', { name: /cancel/i }).click();
       await expect(confirmation).not.toBeVisible({ timeout: 10000 });
       return false;
     }
 
-    await card.getByRole('button', { name: /confirm/i }).click();
+    await confirmation.getByRole('button', { name: /confirm/i }).click();
     await expect(card).not.toBeVisible({ timeout: 20000 });
     return true;
   }

@@ -47,15 +47,23 @@ export class CreateProjectPage {
 
   async cancelOrClose() {
     await expect.poll(async () => {
-      return await this.cancelButton.first().isVisible().catch(() => false) ||
-        !(await this.projectNameInput.isVisible().catch(() => false));
-    }, { timeout: 20000 }).toBe(true);
+      if (!(await this.projectNameInput.isVisible().catch(() => false))) {
+        return true;
+      }
 
-    if (!(await this.cancelButton.first().isVisible().catch(() => false))) {
-      return;
-    }
+      const cancelButton = this.page.getByRole("button", { name: /^(cancel|close|back)$/i }).first();
+      if (!(await cancelButton.isVisible().catch(() => false))) {
+        return false;
+      }
 
-    await this.cancelButton.first().click({ force: true });
+      try {
+        await cancelButton.click({ force: true, timeout: 3000 });
+        await expect(this.projectNameInput).not.toBeVisible({ timeout: 3000 });
+        return true;
+      } catch {
+        return false;
+      }
+    }, { timeout: 20000, intervals: [250, 500, 1000, 2000] }).toBe(true);
   }
 
   async formIsVisible() {
