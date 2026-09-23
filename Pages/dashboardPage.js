@@ -92,8 +92,8 @@ export async function selectAuthorFilter(page, authorName) {
     .last();
   await expect(option).toBeVisible({ timeout: 10000 });
   await option.click();
-  await page.waitForTimeout(1000);
   await page.keyboard.press('Escape');
+  await expect(menu).not.toBeVisible({ timeout: 10000 });
 }
 
 export async function clearAuthorFilter(page) {
@@ -121,11 +121,12 @@ export async function openTagsFilter(page, tagName) {
   await trigger.click();
 
   const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const dropdown = page.locator('[role="menu"], [role="listbox"]').last();
   const option = page.locator('[role="menuitem"], [role="option"], button, [role="listbox"]').filter({ hasText: new RegExp(escapedTagName, 'i') }).first();
   await expect(option).toBeVisible({ timeout: 10000 });
   await option.click();
-  await page.waitForTimeout(1000);
   await page.keyboard.press('Escape');
+  await expect(dropdown).not.toBeVisible({ timeout: 10000 });
 }
 
 export async function projectCardMetadata(page, projectName) {

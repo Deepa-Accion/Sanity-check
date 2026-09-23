@@ -66,7 +66,7 @@ async function openCreateProject(page) {
   return createProjectPage;
 }
 
-async function cleanupCreatedProjects(page, shouldDelete) {
+async function cleanupCreatedProjects(page) {
   const projectsToDelete = new Set(currentTestProjectNames);
   currentTestProjectNames.clear();
 
@@ -129,7 +129,6 @@ async function cleanupCreatedProjects(page, shouldDelete) {
 }
 
 test.describe("Complete Regression Suite", () => {
-  test.describe.configure({ mode: "serial" });
 
   // Common URL navigation for every test
   test.beforeEach("Url Calling", async ({ page }) => {
@@ -140,7 +139,7 @@ test.describe("Complete Regression Suite", () => {
   });
 
   test.afterEach("Clean up passed test projects", async ({ page }, testInfo) => {
-    await cleanupCreatedProjects(page, testInfo.status !== "skipped");
+    await cleanupCreatedProjects(page);
   });
 
   test("@regression Verify BreezeAI dashboard loads successfully", async ({ page }) => {
@@ -343,6 +342,7 @@ test.describe("Complete Regression Suite", () => {
     await dashboard.openProjectTab('My Projects');
     await searchProject(page, projectName);
     await dashboard.openProjectTab('Favourites');
+    // Verify each project independently after clearing the search to avoid pagination assumptions.
     await dashboard.showProjectInCurrentList(projectName);
     await expect(dashboard.projectCard(projectName)).toBeVisible();
     await dashboard.clickProjectFavourite(projectName);
@@ -379,6 +379,7 @@ test.describe("Complete Regression Suite", () => {
     await searchProject(page, projectName);
     await dashboard.clickProjectFavourite(projectName);
     await dashboard.openProjectTab('Favourites');
+    // Verify each project independently after clearing the search to avoid pagination assumptions.
     await dashboard.showProjectInCurrentList(projectName);
     await expect(dashboard.projectCard(projectName)).toBeVisible();
     await dashboard.clickProjectFavourite(projectName);
@@ -389,7 +390,7 @@ test.describe("Complete Regression Suite", () => {
     }
 
     await dashboard.openProjectTab('My Projects');
-  await dashboard.showProjectInCurrentList(projectName);
+    await dashboard.showProjectInCurrentList(projectName);
     await new ProjectPage(page).deleteOrArchiveProject(projectName, { confirm: true });
     await dashboard.openProjectTab('Archived');
     await dashboard.showProjectInCurrentList(projectName);
