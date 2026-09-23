@@ -21,7 +21,11 @@ app.post("/api/run-test", async (req, res) => {
     return res.status(409).json({ error: "A test run is already in progress." });
   }
 
-  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl } = req.body;
+  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role } = req.body;
+
+  const PROD_URL = 'https://breezeai.accion.rocks/';
+  const ACCION_DEV_URL = 'https://connect-new.accionbreeze.com/content';
+  const ACCION_PROD_URL = 'https://connect.accionlabs.com/home';
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -36,6 +40,39 @@ app.post("/api/run-test", async (req, res) => {
 
   const normalizedScenario = (testScenario || '').toLowerCase();
   let specFile = scenarioMap[normalizedScenario] || null;
+
+  // Scenarios that require manually supplied key+token (no OIDC browser login).
+  const manualAuthScenarios = ['breezeai sanity prod', 'accionconnect sanity dev', 'accionconnect sanity prod'];
+  const manualAuthMode = manualAuthScenarios.includes(normalizedScenario);
+
+  if (manualAuthMode) {
+    if (!prodKey || !prodToken) {
+      return res.status(400).json({ error: 'Missing prodKey or prodToken for this scenario.' });
+    }
+    let tokenValue;
+    try {
+      tokenValue = JSON.parse(prodToken);
+    } catch {
+      tokenValue = prodToken;
+    }
+    const payload = JSON.stringify({ key: prodKey, value: tokenValue }, null, 2);
+
+    // Always write to session-auth.json so the default { page } fixture works
+    fs.writeFileSync(path.join(process.cwd(), 'session-auth.json'), payload, 'utf8');
+
+    // Also write to the role-specific file so roles.fixture.mjs picks up the right session
+    const roleFileMap = {
+      admin:   'session-auth-admin.json',
+      viewer:  'session-auth-viewer.json',
+      default: null,
+    };
+    const roleFile = roleFileMap[role] ?? null;
+    if (roleFile) {
+      fs.writeFileSync(path.join(process.cwd(), roleFile), payload, 'utf8');
+    }
+
+    console.log(`[server] session-auth.json updated (role: ${role || 'default'}).`);
+  }
 
   // Localhost mode: validate the URL, generate a copy of the source sanity spec with the
   // dev URL swapped for the user's localhost URL, and run that copy without OIDC auth.
@@ -106,6 +143,20 @@ app.post("/api/run-test", async (req, res) => {
     childEnv.TARGET_URL = targetUrl;
     childEnv.LOCALHOST_RUN = 'true';
     logs.push(`Localhost mode: targeting ${targetUrl} (authentication skipped).`);
+  }
+  if (manualAuthMode) {
+    const urlMap = {
+      'breezeai sanity prod': PROD_URL,
+      'accionconnect sanity dev': ACCION_DEV_URL,
+      'accionconnect sanity prod': ACCION_PROD_URL,
+    };
+    childEnv.TARGET_URL = urlMap[normalizedScenario];
+    childEnv.SKIP_OIDC = 'true';
+    if (role) childEnv.ROLE = role;
+    logs.push(`Manual-auth mode: targeting ${childEnv.TARGET_URL} (role: ${role || 'default'}, credentials loaded from session-auth.json).`);
+  }
+  if (!manualAuthMode && role) {
+    childEnv.ROLE = role;
   }
   if (!headless) {
     args.push("--headed");
