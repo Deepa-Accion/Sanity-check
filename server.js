@@ -8,6 +8,11 @@ const app = express();
 const port = process.env.PORT || 3001;
 const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
 
+// Target URLs per environment
+const BREEZE_PROD_URL  = 'https://breezeai.accion.rocks/';
+const ACCION_DEV_URL   = 'https://connect-new.accionbreeze.com/content';
+const ACCION_PROD_URL  = 'https://connect.accionlabs.com/home';
+
 app.use(cors());
 app.use(express.json());
 
@@ -21,11 +26,7 @@ app.post("/api/run-test", async (req, res) => {
     return res.status(409).json({ error: "A test run is already in progress." });
   }
 
-  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role } = req.body;
-
-  const PROD_URL = 'https://breezeai.accion.rocks/';
-  const ACCION_DEV_URL = 'https://connect-new.accionbreeze.com/content';
-  const ACCION_PROD_URL = 'https://connect.accionlabs.com/home';
+  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role, clientUrl } = req.body;
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -35,11 +36,36 @@ app.post("/api/run-test", async (req, res) => {
     'accionconnect sanity prod': 'tests/sanity_accionprod.spec.mjs',
     'breezeai complete regression dev': 'tests/completeregression.spec.mjs',
     // Localhost sanity: source spec is the dev sanity suite; a localhost copy is generated below.
-    'breezeai sanity localhost': 'tests/sanity.spec.mjs'
+    'breezeai sanity localhost': 'tests/sanity.spec.mjs',
+    // Client sanity: reuses the prod sanity suite — TARGET_URL is set to the client-supplied URL.
+    'client based sanity': 'tests/sanity_prod.spec.mjs',
   };
 
   const normalizedScenario = (testScenario || '').toLowerCase();
   let specFile = scenarioMap[normalizedScenario] || null;
+
+  // Client sanity: user supplies their own deployment URL + credentials.
+  const clientSanityMode = normalizedScenario === 'client based sanity';
+  let normalizedClientUrl = null;
+  if (clientSanityMode) {
+    if (!clientUrl) {
+      return res.status(400).json({ error: 'Missing clientUrl for client based sanity.' });
+    }
+    try {
+      const u = new URL(clientUrl);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+      normalizedClientUrl = u.href.endsWith('/') ? u.href : `${u.href}/`;
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid clientUrl — must be a valid http(s) URL.' });
+    }
+    if (!prodKey || !prodToken) {
+      return res.status(400).json({ error: 'Missing prodKey or prodToken for client based sanity.' });
+    }
+    let tokenValue;
+    try { tokenValue = JSON.parse(prodToken); } catch { tokenValue = prodToken; }
+    fs.writeFileSync(path.join(process.cwd(), 'session-auth.json'), JSON.stringify({ key: prodKey, value: tokenValue }, null, 2), 'utf8');
+    console.log(`[server] session-auth.json updated for client sanity (url: ${normalizedClientUrl}).`);
+  }
 
   // Scenarios that require manually supplied key+token (no OIDC browser login).
   const manualAuthScenarios = ['breezeai sanity prod', 'accionconnect sanity dev', 'accionconnect sanity prod'];
@@ -146,7 +172,7 @@ app.post("/api/run-test", async (req, res) => {
   }
   if (manualAuthMode) {
     const urlMap = {
-      'breezeai sanity prod': PROD_URL,
+      'breezeai sanity prod': BREEZE_PROD_URL,
       'accionconnect sanity dev': ACCION_DEV_URL,
       'accionconnect sanity prod': ACCION_PROD_URL,
     };
@@ -155,8 +181,13 @@ app.post("/api/run-test", async (req, res) => {
     if (role) childEnv.ROLE = role;
     logs.push(`Manual-auth mode: targeting ${childEnv.TARGET_URL} (role: ${role || 'default'}, credentials loaded from session-auth.json).`);
   }
-  if (!manualAuthMode && role) {
+  if (!manualAuthMode && !clientSanityMode && role) {
     childEnv.ROLE = role;
+  }
+  if (clientSanityMode) {
+    childEnv.TARGET_URL = normalizedClientUrl;
+    childEnv.SKIP_OIDC = 'true';
+    logs.push(`Client sanity mode: targeting ${childEnv.TARGET_URL} (credentials loaded from session-auth.json).`);
   }
   if (!headless) {
     args.push("--headed");
