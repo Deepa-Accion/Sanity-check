@@ -1,11 +1,79 @@
 import { expect } from "@playwright/test";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import { checkAndRecoverFromAppError } from "../tests/test-utils.mjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const TARGET_URL = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
+
+export class ProjectPage {
+  constructor(page) {
+    this.page = page;
+  }
+
+  projectCard(projectName) {
+    return this.page
+      .locator("article, [data-testid*='project-card' i], div.bg-surface-card")
+      .filter({ hasText: projectName })
+      .first();
+  }
+
+  async openProjectOptionsMenu(projectName) {
+    const card = this.projectCard(projectName);
+    await expect(card).toBeVisible({ timeout: 20000 });
+
+    const optionsButton = card.getByRole("button", { name: /project options/i }).first();
+    await expect(optionsButton).toBeVisible({ timeout: 15000 });
+    await optionsButton.click();
+
+    const menu = this.page.getByRole("menu", { name: /project options/i }).first();
+    await expect(menu).toBeVisible({ timeout: 15000 });
+    return menu;
+  }
+
+  async deleteOrArchiveProject(projectName, { confirm = true } = {}) {
+    const dialog = this.page.getByRole('alertdialog').filter({ hasText: /delete|archive/i }).first();
+    let dialogVisible = false;
+    let lastError;
+
+    for (let attempt = 0; attempt < 3 && !dialogVisible; attempt += 1) {
+      try {
+        const menu = await this.openProjectOptionsMenu(projectName);
+        const action = menu.getByRole("menuitem", { name: /^(delete|archive)$/i }).first();
+
+        await expect(action).toBeVisible({ timeout: 10000 });
+        await action.click({ force: true });
+        await expect(dialog).toBeVisible({ timeout: 5000 });
+        dialogVisible = true;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await this.page.keyboard.press('Escape').catch(() => {});
+        }
+      }
+    }
+
+    if (!dialogVisible && lastError) {
+      throw lastError;
+    }
+    await expect(dialog).toBeVisible({ timeout: 15000 });
+
+    const confirmButton = dialog
+      .getByRole('button', { name: /^(archive|delete|confirm)$/i })
+      .last();
+
+    if (confirm) {
+      await expect(confirmButton).toBeVisible({ timeout: 15000 });
+      await confirmButton.click();
+      await expect(this.projectCard(projectName)).not.toBeVisible({ timeout: 20000 });
+      return true;
+    }
+
+    const cancelButton = dialog.getByRole('button', { name: /cancel/i }).first();
+    await expect(cancelButton).toBeVisible({ timeout: 15000 });
+    await cancelButton.click();
+    await expect(dialog).not.toBeVisible({ timeout: 15000 });
+    return false;
+  }
+}
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -168,12 +236,12 @@ export async function validateDownloadedPlainHtml(page, projectName) {
 }
 
 export async function validateDownloadedPlainMarkdown(page, projectName) {
-  const { viewButton, overlayCloseButton } = artifactLocators(page);
+  const { viewButton, artifactPreviewDialog, overlayCloseButton } = artifactLocators(page);
   const expectedTitle = `${projectName}`;
 
   await viewButton.click();
-  await expect(page.getByText(/Functional Requirements Document/i).first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
+  await expect(artifactPreviewDialog).toContainText(/Functional Requirements Document/i, { timeout: 10000 });
   await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
   await overlayCloseButton.click();
   await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
@@ -646,7 +714,7 @@ export async function waitForOntologyStatus(page, entryName, { acceptedStatuses 
  */
 export async function uploadAndGenerateCodeOntology(page, projectId, ontologyName, fileName = 'sanity-check-repo.ndjson.gz') {
   const baseUrl = process.env.TARGET_URL || 'https://ai.accionbreeze.com/';
-  const filePath = join(__dirname, '..', 'documents', fileName);
+  const filePath = fileURLToPath(new URL(`../documents/${fileName}`, import.meta.url));
 
   console.log(`[codeOntology] Navigating to /code-ontology/${projectId}`);
   await page.goto(`${baseUrl}code-ontology/${projectId}`, { waitUntil: 'domcontentloaded' });
