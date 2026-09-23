@@ -10,17 +10,20 @@ const TARGET_URL = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
 const PROD_RUN   = process.env.PROD_RUN   === "true";
 const SKIP_OIDC  = process.env.SKIP_OIDC  === "true";
 
-// Default user credentials
-const USERNAME = process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
-const PASSWORD = process.env.BREEZE_PASSWORD || "D#K8AWj3A";
+// Credentials — set via environment variables; no hardcoded fallbacks.
+// Required: BREEZE_USERNAME, BREEZE_PASSWORD
+// Optional role overrides: BREEZE_USERNAME_ADMIN, BREEZE_PASSWORD_ADMIN,
+//                          BREEZE_USERNAME_VIEWER, BREEZE_PASSWORD_VIEWER
+const USERNAME = process.env.BREEZE_USERNAME;
+const PASSWORD = process.env.BREEZE_PASSWORD;
 
-// Admin credentials — fall back to default if not separately configured
-const USERNAME_ADMIN = process.env.BREEZE_USERNAME_ADMIN || process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
-const PASSWORD_ADMIN = process.env.BREEZE_PASSWORD_ADMIN || process.env.BREEZE_PASSWORD || "D#K8AWj3A";
+// Admin credentials — fall back to default user if role-specific vars are not set
+const USERNAME_ADMIN = process.env.BREEZE_USERNAME_ADMIN || process.env.BREEZE_USERNAME;
+const PASSWORD_ADMIN = process.env.BREEZE_PASSWORD_ADMIN || process.env.BREEZE_PASSWORD;
 
-// Viewer credentials — fall back to default if not separately configured
-const USERNAME_VIEWER = process.env.BREEZE_USERNAME_VIEWER || process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
-const PASSWORD_VIEWER = process.env.BREEZE_PASSWORD_VIEWER || process.env.BREEZE_PASSWORD || "D#K8AWj3A";
+// Viewer credentials — fall back to default user if role-specific vars are not set
+const USERNAME_VIEWER = process.env.BREEZE_USERNAME_VIEWER || process.env.BREEZE_USERNAME;
+const PASSWORD_VIEWER = process.env.BREEZE_PASSWORD_VIEWER || process.env.BREEZE_PASSWORD;
 
 const AUTH_FILE              = path.join(__dirname, "auth.json");
 const SESSION_AUTH_FILE      = path.join(__dirname, "session-auth.json");
