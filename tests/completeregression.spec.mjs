@@ -66,9 +66,14 @@ async function openCreateProject(page) {
   return createProjectPage;
 }
 
-async function cleanupCreatedProjects(page) {
+async function cleanupCreatedProjects(page, shouldDelete = true) {
   const projectsToDelete = new Set(currentTestProjectNames);
   currentTestProjectNames.clear();
+
+  if (!shouldDelete) {
+    console.warn(`[cleanup] Test did not pass — preserving ${projectsToDelete.size} project(s) for debugging.`);
+    return;
+  }
 
   if (projectsToDelete.size === 0) {
     return;
@@ -139,7 +144,7 @@ test.describe("Complete Regression Suite", () => {
   });
 
   test.afterEach("Clean up passed test projects", async ({ page }, testInfo) => {
-    await cleanupCreatedProjects(page);
+    await cleanupCreatedProjects(page, testInfo.status === "passed");
   });
 
   test("@regression Verify BreezeAI dashboard loads successfully", async ({ page }) => {
