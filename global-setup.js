@@ -94,6 +94,13 @@ export default async function globalSetup() {
     return;
   }
 
+  // Guard: fail fast with a clear message rather than silently logging in as "undefined"
+  if (!USERNAME || !PASSWORD) {
+    throw new Error(
+      "[global-setup] BREEZE_USERNAME and BREEZE_PASSWORD environment variables are required for auto-login runs."
+    );
+  }
+
   console.log("[global-setup] Starting browser-based login to", TARGET_URL);
   const browser = await chromium.launch({ headless: true });
 

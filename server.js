@@ -8,6 +8,11 @@ const app = express();
 const port = process.env.PORT || 3001;
 const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
 
+// Target URLs per environment
+const BREEZE_PROD_URL  = 'https://breezeai.accion.rocks/';
+const ACCION_DEV_URL   = 'https://connect-new.accionbreeze.com/content';
+const ACCION_PROD_URL  = 'https://connect.accionlabs.com/home';
+
 app.use(cors());
 app.use(express.json());
 
@@ -22,10 +27,6 @@ app.post("/api/run-test", async (req, res) => {
   }
 
   const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role } = req.body;
-
-  const PROD_URL = 'https://breezeai.accion.rocks/';
-  const ACCION_DEV_URL = 'https://connect-new.accionbreeze.com/content';
-  const ACCION_PROD_URL = 'https://connect.accionlabs.com/home';
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -146,7 +147,7 @@ app.post("/api/run-test", async (req, res) => {
   }
   if (manualAuthMode) {
     const urlMap = {
-      'breezeai sanity prod': PROD_URL,
+      'breezeai sanity prod': BREEZE_PROD_URL,
       'accionconnect sanity dev': ACCION_DEV_URL,
       'accionconnect sanity prod': ACCION_PROD_URL,
     };
