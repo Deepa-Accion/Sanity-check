@@ -46,11 +46,11 @@ app.post("/api/run-test", async (req, res) => {
 
   // Client sanity: user supplies their own deployment URL + credentials.
   const clientSanityMode = normalizedScenario === 'client based sanity';
+  let normalizedClientUrl = null;
   if (clientSanityMode) {
     if (!clientUrl) {
       return res.status(400).json({ error: 'Missing clientUrl for client based sanity.' });
     }
-    let normalizedClientUrl;
     try {
       const u = new URL(clientUrl);
       if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
@@ -185,8 +185,7 @@ app.post("/api/run-test", async (req, res) => {
     childEnv.ROLE = role;
   }
   if (clientSanityMode) {
-    const u = new URL(clientUrl);
-    childEnv.TARGET_URL = u.href.endsWith('/') ? u.href : `${u.href}/`;
+    childEnv.TARGET_URL = normalizedClientUrl;
     childEnv.SKIP_OIDC = 'true';
     logs.push(`Client sanity mode: targeting ${childEnv.TARGET_URL} (credentials loaded from session-auth.json).`);
   }
