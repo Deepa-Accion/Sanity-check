@@ -10,9 +10,9 @@ import {
 } from "../Pages/knowlegeBase.js";
 import { withErrorCapture, checkAndRecoverFromAppError } from "./test-utils.mjs";
 
-// Production app URL (https://accionbreeze.ai/ redirects here; navigating to that
-// alternate domain mid-session corrupts SSO state, so all tests use this URL directly).
-const PROD_APP_URL = "https://ai.accionbreeze.com/";
+// Production app URL — uses TARGET_URL env var set by the server when PROD_RUN=true,
+// falling back to the canonical prod domain.
+const PROD_APP_URL = process.env.TARGET_URL || "https://breezeai.accion.rocks/";
 
 let projectName = "";
 let projectId = "";

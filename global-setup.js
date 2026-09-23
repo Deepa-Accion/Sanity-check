@@ -6,96 +6,132 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Target URL — overridable via env (e.g. for prod runs); defaults to BreezeAI dev
 const TARGET_URL = process.env.TARGET_URL || "https://ai.accionbreeze.com/";
+const PROD_RUN   = process.env.PROD_RUN   === "true";
+const SKIP_OIDC  = process.env.SKIP_OIDC  === "true";
 
-// Credentials — overridable via env so CI can inject secrets without code changes
+// Default user credentials
 const USERNAME = process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
 const PASSWORD = process.env.BREEZE_PASSWORD || "D#K8AWj3A";
 
-const AUTH_FILE         = path.join(__dirname, "auth.json");
-const SESSION_AUTH_FILE = path.join(__dirname, "session-auth.json");
+// Admin credentials — fall back to default if not separately configured
+const USERNAME_ADMIN = process.env.BREEZE_USERNAME_ADMIN || process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
+const PASSWORD_ADMIN = process.env.BREEZE_PASSWORD_ADMIN || process.env.BREEZE_PASSWORD || "D#K8AWj3A";
 
-export default async function globalSetup() {
-  console.log("[global-setup] Starting browser-based login to", TARGET_URL);
+// Viewer credentials — fall back to default if not separately configured
+const USERNAME_VIEWER = process.env.BREEZE_USERNAME_VIEWER || process.env.BREEZE_USERNAME || "swetha.test@accionlabs.com";
+const PASSWORD_VIEWER = process.env.BREEZE_PASSWORD_VIEWER || process.env.BREEZE_PASSWORD || "D#K8AWj3A";
 
-  const browser = await chromium.launch({ headless: true });
+const AUTH_FILE              = path.join(__dirname, "auth.json");
+const SESSION_AUTH_FILE      = path.join(__dirname, "session-auth.json");
+const SESSION_AUTH_ADMIN_FILE  = path.join(__dirname, "session-auth-admin.json");
+const SESSION_AUTH_VIEWER_FILE = path.join(__dirname, "session-auth-viewer.json");
+
+async function loginAndCaptureSession(browser, { username, password, sessionFile, label }) {
   const context = await browser.newContext();
   const page    = await context.newPage();
 
   try {
-    // Navigate to the app root.
-    // IMPORTANT: the SPA uses client-side routing — it lands at "/" on domcontentloaded
-    // then React mounts and redirects to /login when there is no valid session.
-    // We MUST wait for that redirect to settle before checking the URL.
     await page.goto(TARGET_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.waitForTimeout(3000); // allow React to mount + perform the /login redirect
+    await page.waitForTimeout(3000);
 
     if (page.url().includes("/login")) {
-      console.log("[global-setup] Redirected to login — performing login flow...");
+      console.log(`[global-setup:${label}] Redirected to login — performing login flow...`);
 
-      // Click "Sign in with Breeze AI" to reach the Keycloak credential form
       await page
         .locator('button:has-text("Sign in with Breeze AI"), a:has-text("Sign in with Breeze AI")')
         .click({ timeout: 15000 });
 
-      // Wait for the Keycloak login page to load
       await page.waitForURL(/login-new\.accionbreeze\.com/, { timeout: 15000 });
-
-      // Fill in credentials
-      await page.fill("#username, input[name='username']", USERNAME);
-      await page.fill("#password, input[name='password']", PASSWORD);
-
-      // Submit — Keycloak uses id="kc-login" or button[name="login"]
+      await page.fill("#username, input[name='username']", username);
+      await page.fill("#password, input[name='password']", password);
       await page.click("#kc-login, button[name='login'], button[type='submit']");
-
-      // Wait for OIDC callback and redirect back to the app
       await page.waitForURL(/ai\.accionbreeze\.com/, { timeout: 30000 });
-
-      // Allow the OIDC callback + React app initialisation to settle
       await page.waitForTimeout(5000);
-
-      console.log("[global-setup] Login successful — landed at:", page.url());
+      console.log(`[global-setup:${label}] Login successful — landed at:`, page.url());
     } else {
-      console.log("[global-setup] Already authenticated at", page.url());
+      console.log(`[global-setup:${label}] Already authenticated at`, page.url());
     }
 
-    // ── Capture the live OIDC token from sessionStorage ──────────────────────
-    // The fixture (auth-healing.fixture.mjs) injects this token into every page
-    // so tests run authenticated.  We refresh it on every setup run so it never
-    // goes stale (the old "capture-session" manual step is no longer needed).
     const oidcEntry = await page.evaluate(() => {
       for (let i = 0; i < sessionStorage.length; i++) {
         const k = sessionStorage.key(i);
         if (k && k.startsWith("oidc.user:")) {
-          try {
-            return { key: k, value: JSON.parse(sessionStorage.getItem(k)) };
-          } catch { /* skip malformed entries */ }
+          try { return { key: k, value: JSON.parse(sessionStorage.getItem(k)) }; } catch {}
         }
       }
       return null;
     });
 
-    if (oidcEntry && oidcEntry.value?.access_token) {
-      await fs.writeFile(SESSION_AUTH_FILE, JSON.stringify(oidcEntry), "utf8");
+    if (oidcEntry?.value?.access_token) {
+      await fs.writeFile(sessionFile, JSON.stringify(oidcEntry), "utf8");
       const exp = oidcEntry.value.expires_at;
       console.log(
-        `[global-setup] session-auth.json refreshed` +
-        (exp ? ` (token expires ${new Date(exp * 1000).toISOString()})` : "")
+        `[global-setup:${label}] ${path.basename(sessionFile)} saved` +
+        (exp ? ` (expires ${new Date(exp * 1000).toISOString()})` : "")
       );
     } else {
-      console.warn(
-        "[global-setup] OIDC token not found in sessionStorage — " +
-        "session-auth.json was NOT updated.  Run 'npm run capture-session' manually."
-      );
+      console.warn(`[global-setup:${label}] OIDC token not found — ${path.basename(sessionFile)} not updated.`);
     }
 
-    // Persist cookies + localStorage (sessionStorage is not serialisable by
-    // Playwright, which is why we capture it separately above).
-    await context.storageState({ path: AUTH_FILE });
-    console.log("[global-setup] auth.json saved, setup complete.");
+    return context;
   } catch (err) {
-    console.error("[global-setup] Login failed:", err.message);
+    console.error(`[global-setup:${label}] Login failed:`, err.message);
+    await context.close();
+    throw err;
+  }
+}
+
+export default async function globalSetup() {
+  // Manual-auth mode: session-auth.json was pre-populated by the server with the
+  // user-supplied key + token. Skip the browser-based OIDC login entirely.
+  if (PROD_RUN || SKIP_OIDC) {
+    console.log("[global-setup] Manual-auth mode detected — skipping OIDC browser login.");
+    console.log("[global-setup] Using pre-loaded credentials from session-auth.json for", TARGET_URL);
+    return;
+  }
+
+  console.log("[global-setup] Starting browser-based login to", TARGET_URL);
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    // ── Default user ──────────────────────────────────────────────────────────
+    const defaultContext = await loginAndCaptureSession(browser, {
+      username: USERNAME, password: PASSWORD,
+      sessionFile: SESSION_AUTH_FILE, label: "default",
+    });
+    // Save cookies + localStorage as the shared Playwright storage state
+    await defaultContext.storageState({ path: AUTH_FILE });
+    console.log("[global-setup] auth.json saved.");
+    await defaultContext.close();
+
+    // ── Admin user ────────────────────────────────────────────────────────────
+    if (USERNAME_ADMIN !== USERNAME || PASSWORD_ADMIN !== PASSWORD) {
+      const adminContext = await loginAndCaptureSession(browser, {
+        username: USERNAME_ADMIN, password: PASSWORD_ADMIN,
+        sessionFile: SESSION_AUTH_ADMIN_FILE, label: "admin",
+      });
+      await adminContext.close();
+    } else {
+      await fs.copyFile(SESSION_AUTH_FILE, SESSION_AUTH_ADMIN_FILE);
+      console.log("[global-setup] Admin creds same as default — session-auth-admin.json copied.");
+    }
+
+    // ── Viewer user ───────────────────────────────────────────────────────────
+    if (USERNAME_VIEWER !== USERNAME || PASSWORD_VIEWER !== PASSWORD) {
+      const viewerContext = await loginAndCaptureSession(browser, {
+        username: USERNAME_VIEWER, password: PASSWORD_VIEWER,
+        sessionFile: SESSION_AUTH_VIEWER_FILE, label: "viewer",
+      });
+      await viewerContext.close();
+    } else {
+      await fs.copyFile(SESSION_AUTH_FILE, SESSION_AUTH_VIEWER_FILE);
+      console.log("[global-setup] Viewer creds same as default — session-auth-viewer.json copied.");
+    }
+
+    console.log("[global-setup] All role sessions saved — setup complete.");
+  } catch (err) {
+    console.error("[global-setup] Setup failed:", err.message);
     throw err;
   } finally {
     await browser.close();
