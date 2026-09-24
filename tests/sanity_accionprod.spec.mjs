@@ -2,11 +2,13 @@ import { test, expect } from "./auth.fixture.mjs";
 
 test.describe("Sanity Suite", () => {
 
+  const ACCION_PROD_URL = process.env.TARGET_URL || "https://connect.accionlabs.com/home";
+
   test.beforeEach("Url Calling", async ({ page}) => {
-    await page.goto("https://connect.accionlabs.com/home");
+    await page.goto(ACCION_PROD_URL);
   });
   test("@sanity Accion Connect Prod dashboard Launched", async ({ page }) => {
-    await page.goto("https://connect.accionlabs.com/home");
+    await page.goto(ACCION_PROD_URL);
     
     // Try multiple selectors for login button
     let loginBtn = page.getByTestId('Accion-Labs-login-button');

@@ -4,9 +4,9 @@ export class CreateProjectPage {
   constructor(page) {
     this.page = page;
     this.createProjectButton = page.getByRole("button", { name: /create project/i });
-    this.projectNameInput = page.getByPlaceholder(/enter component name/i);
-    this.descriptionInput = page.getByPlaceholder(/enter project description/i);
-    this.tagInput = page.getByPlaceholder(/add a tag/i);
+    this.projectNameInput = page.getByPlaceholder(/^enter component name$/i);
+    this.descriptionInput = page.getByPlaceholder(/^enter project description$/i);
+    this.tagInput = page.getByPlaceholder(/^add a tag$/i);
     this.addTagButton = page.getByRole("button", { name: /^add$/i });
     this.saveButton = page.getByRole("button", { name: /^save$/i });
     this.cancelButton = page.getByRole("button", { name: /^(cancel|close|back)$/i });
@@ -41,13 +41,29 @@ export class CreateProjectPage {
 
   async save() {
     await this.saveButton.scrollIntoViewIfNeeded();
-    await this.saveButton.click({ force: true });
+    await expect(this.saveButton).toBeEnabled();
+    await this.saveButton.click();
   }
 
   async cancelOrClose() {
-    const visibleCancel = this.cancelButton.first();
-    await expect(visibleCancel).toBeVisible();
-    await visibleCancel.click({ force: true });
+    await expect.poll(async () => {
+      if (!(await this.projectNameInput.isVisible().catch(() => false))) {
+        return true;
+      }
+
+      const cancelButton = this.page.getByRole("button", { name: /^(cancel|close|back)$/i }).first();
+      if (!(await cancelButton.isVisible().catch(() => false))) {
+        return false;
+      }
+
+      try {
+        await cancelButton.click({ force: true, timeout: 3000 });
+        await expect(this.projectNameInput).not.toBeVisible({ timeout: 3000 });
+        return true;
+      } catch {
+        return false;
+      }
+    }, { timeout: 20000, intervals: [250, 500, 1000, 2000] }).toBe(true);
   }
 
   async formIsVisible() {
@@ -58,7 +74,10 @@ export class CreateProjectPage {
     const message = this.page.locator('[role="alert"], [aria-live="assertive"], p, span').filter({
       hasText: /required|invalid|already exists|duplicate|must|error/i,
     }).first();
-    return message.isVisible().catch(() => false) ? message.innerText() : "";
+    if (!(await message.isVisible().catch(() => false))) {
+      return "";
+    }
+    return (await message.innerText()).trim();
   }
 
   async projectDestination(name) {

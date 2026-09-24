@@ -15,12 +15,36 @@ export default function App() {
   const [customReportPath, setCustomReportPath] = useState(null);
   const [localhostUrl, setLocalhostUrl] = useState("http://localhost:5173");
   const [localhostError, setLocalhostError] = useState(null);
+  const [prodKey, setProdKey] = useState("");
+  const [prodToken, setProdToken] = useState("");
+  const [prodAuthError, setProdAuthError] = useState(null);
+  const [role, setRole] = useState("default");
+  const [clientUrl, setClientUrl] = useState("");
+  const [clientUrlError, setClientUrlError] = useState(null);
   const logsRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [notification, setNotification] = useState(null);
 
   // Localhost sanity mode: user supplies a localhost URL instead of credentials.
   const isLocalhost = testScenario === "Breezeai sanity localhost";
+  // Client-based sanity: user supplies their own deployment URL + credentials.
+  const isClientSanity = testScenario === "Client based sanity";
+  // Scenarios that require manually supplied session key + token instead of OIDC auto-login.
+  const isProd = testScenario === "Breezeai sanity prod";
+  const isAccionConnectDev = testScenario === "AccionConnect sanity dev";
+  const isAccionConnectProd = testScenario === "AccionConnect sanity prod";
+  const requiresManualAuth = isProd || isAccionConnectDev || isAccionConnectProd || isClientSanity;
+
+  const targetUrlLabel = isAccionConnectDev
+    ? "https://connect-new.accionbreeze.com/content"
+    : isAccionConnectProd
+    ? "https://connect.accionlabs.com/home"
+    : isClientSanity
+    ? clientUrl || "<your client URL>"
+    : "https://breezeai.accion.rocks/";
+
+  // Role selector: Breeze platform only — not AccionConnect, not localhost, not client sanity
+  const showRoleSelector = !isLocalhost && !isAccionConnectDev && !isAccionConnectProd && !isClientSanity;
 
   const addTestLog = (text) =>
     setTestLogs((s) => [...s, `[${new Date().toLocaleTimeString()}] ${text}`]);
@@ -67,10 +91,50 @@ export default function App() {
       setLocalhostError(null);
     }
 
+    // Client sanity: validate the user-supplied deployment URL
+    if (isClientSanity) {
+      const candidate = (clientUrl || "").trim();
+      let validUrl = false;
+      try {
+        const u = new URL(candidate);
+        validUrl = u.protocol === "http:" || u.protocol === "https:";
+      } catch (e) {
+        validUrl = false;
+      }
+      if (!validUrl) {
+        setClientUrlError("Enter a valid client URL, e.g. https://client.breezeai.com/");
+        addTestLog("Invalid client URL — aborting run.");
+        setTestFailed(true);
+        setRunStatus("failed");
+        setTestInProgress(false);
+        setProcessCompleted(true);
+        return;
+      }
+      setClientUrlError(null);
+    }
+
+    // Manual-auth scenarios: require key and token
+    if (requiresManualAuth) {
+      if (!prodKey.trim() || !prodToken.trim()) {
+        setProdAuthError("Both Session Key and Auth Token are required.");
+        addTestLog("Missing credentials — aborting run.");
+        setTestFailed(true);
+        setRunStatus("failed");
+        setTestInProgress(false);
+        setProcessCompleted(true);
+        return;
+      }
+      setProdAuthError(null);
+    }
+
     try {
       const body = isLocalhost
         ? { testScenario, browser, headless, isLocalhost: true, localhostUrl: localhostUrl.trim() }
-        : { testScenario, browser, headless };
+        : isClientSanity
+        ? { testScenario, browser, headless, clientUrl: clientUrl.trim(), prodKey: prodKey.trim(), prodToken: prodToken.trim() }
+        : requiresManualAuth
+        ? { testScenario, browser, headless, role, prodKey: prodKey.trim(), prodToken: prodToken.trim() }
+        : { testScenario, browser, headless, role };
 
       const response = await fetch("/api/run-test", {
         signal: controller.signal,
@@ -358,6 +422,7 @@ export default function App() {
               <option>Breezeai complete regression dev</option>
               <option>AccionConnect sanity dev</option>
               <option>AccionConnect sanity prod</option>
+              <option>Client based sanity</option>
             </select>
           </div>
 
@@ -374,6 +439,22 @@ export default function App() {
               <option value="webkit">WebKit</option>
             </select>
           </div>
+
+          {showRoleSelector && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Role</label>
+              <select
+                style={styles.select}
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                disabled={testInProgress}
+              >
+                <option value="default">Default</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+          )}
 
           <div style={styles.formGroup}>
             <div style={styles.checkboxContainer}>
@@ -411,8 +492,59 @@ export default function App() {
             </div>
           )}
 
-          {/* Auth status badge — shown for authenticated (non-localhost) scenarios */}
-          {!isLocalhost && (
+          {/* Client URL — only for client-based sanity */}
+          {isClientSanity && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Client Deployment URL</label>
+              <input
+                style={styles.select}
+                value={clientUrl}
+                onChange={(e) => setClientUrl(e.target.value)}
+                placeholder="https://client.breezeai.com/"
+                disabled={testInProgress}
+              />
+              {clientUrlError && (
+                <div style={{ color: "#d9534f", fontSize: 12, marginTop: 6 }}>
+                  {clientUrlError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Manual-auth credentials — shown for prod/accionconnect/client scenarios */}
+          {requiresManualAuth && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Session Key</label>
+              <input
+                style={{ ...styles.select, marginBottom: 8 }}
+                value={prodKey}
+                onChange={(e) => setProdKey(e.target.value)}
+                placeholder="oidc.user:https://..."
+                disabled={testInProgress}
+              />
+              <label style={styles.label}>Auth Token (JSON)</label>
+              <textarea
+                style={{ ...styles.select, height: 72, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
+                value={prodToken}
+                onChange={(e) => setProdToken(e.target.value)}
+                placeholder='{"access_token":"...","id_token":"...",...}'
+                disabled={testInProgress}
+              />
+              <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
+                Credentials are saved to <code>session-auth.json</code> and injected into the
+                browser session before tests run against{" "}
+                <strong>{targetUrlLabel}</strong>.
+              </div>
+              {prodAuthError && (
+                <div style={{ color: "#d9534f", fontSize: 12, marginTop: 6 }}>
+                  {prodAuthError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Auth status badge — shown only for auto-login scenarios (dev, not localhost/manual-auth) */}
+          {!isLocalhost && !requiresManualAuth && (
             <div style={styles.authBadge}>
               <span style={{ fontSize: "16px" }}>🔒</span>
               <div>
