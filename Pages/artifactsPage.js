@@ -49,10 +49,11 @@ function artifactLocators(page) {
   const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
   const generateFunctionalDialog = page.getByRole("dialog", { name: "Generate Functional" });
   const artifactPreviewDialog = page.getByRole("dialog").last();
-  
+  const functionalArtifactRow = page.getByRole("row").filter({ hasText: "Functional Documentation" }).first();
+
   return {
     menuArtifactsButton: primaryNavigation.getByRole("button", { name: "Artifacts", exact: true }),
-    downloadDocumentationBtn: page.getByRole("button", { name: "Functional Documentation"}),
+    downloadDocumentationBtn: page.getByRole("button", { name: /^Functional Documentation/i }).first(),
     searchArtifactsButton: page.getByRole('textbox', { name: 'Search artifacts...', exact: true }),
     generateFunctionalDialog: page.getByRole("dialog", { name: "Generate Functional" }),
     dwnldArtifactPlainHtmlBtn: generateFunctionalDialog.getByRole("button", {
@@ -62,18 +63,19 @@ function artifactLocators(page) {
       name: /Plain Markdown/i,
     }).first(),
     artifactPreviewDialog,
-    viewButton: page.getByRole("button", { name: "View", exact: true }),
+    viewButton: functionalArtifactRow.getByRole("button", { name: "View", exact: true }),
     mrkdwnOpenButton: artifactPreviewDialog.getByRole("button", { name: "Open", exact: true }).first(),
     overlayCloseButton: page.locator('svg.lucide-x'),
     copyButton: page.getByRole("button", { name: "Copy", exact: true }).first(),
-    secondaryCopyButton: page.locator('button:has(svg.lucide-clipboard-copy)'),
+    secondaryCopyButton: page.locator('button:has(svg.lucide-clipboard-copy)').first(),
     artifactsHeading: page.getByRole("heading", { name: "Artifacts", exact: true }),
     refreshArtifactsButton: page.getByRole("button", { name: "Refresh artifacts", exact: true }),
     artifactsTable: page.getByRole("table"),
     emptyArtifactsHeading: page.getByRole("heading", { name: "No artifacts yet", exact: true }),
-    artifactReady: page.getByText("Ready", { exact: true }).first(),
+    artifactReady: functionalArtifactRow.getByText("Ready", { exact: true }),
     infoIconOnArtifactsPage:page.getByText('Prefer a controlled, reviewable functional document? Try /breeze:generate-spec'),
-    infoIconBreezeCodeSnippet: page.locator('pre:has-text("/breeze:generate-spec")')
+    infoIconBreezeCodeSnippet: page.locator('pre:has-text("/breeze:generate-spec")'),
+    functionalArtifactRecord: page.getByRole("row").filter({ hasText: "Functional Documentation" })
   }; 
 }
 
@@ -96,14 +98,37 @@ export async function downloadArtifactPlainHtml(page, projectId) {
   await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 5000 });
   await dwnldArtifactPlainHtmlBtn.click();
   await expect(artifactReady).toBeVisible({ timeout: 10000 });
+  return getArtifactRecordCount(page);
+}
+
+export async function getArtifactRecordCount(page) {
+  const rows = page.locator('tbody tr');
+  let count = 0;
+
+  try {
+    await expect
+      .poll(async () => {
+        count = await rows.count();
+        return count;
+      }, {
+        timeout: 10000,
+      })
+      .toBeGreaterThan(0);
+  } catch {
+    console.log('No artifact records found after waiting 10 seconds');
+    return 0;
+  }
+
+  console.log(`Total artifact records found: ${count}`);
+  return count;
 }
 
 export async function validateDownloadedPlainHtml(page, projectName) {
   const { viewButton, overlayCloseButton } = artifactLocators(page);
   const expectedTitle = `Functional Specification - ${projectName}`;
 
-  await expect(viewButton.first()).toBeVisible({ timeout: 10000 });
-  await viewButton.first().click();
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
+  await viewButton.click();
   await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 10 seconds.`).toBeVisible({ timeout: 10000 });
   
   await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
@@ -111,33 +136,36 @@ export async function validateDownloadedPlainHtml(page, projectName) {
   await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
-export async function validateMultipleViewButtons(page) {
-  const { viewButton } = artifactLocators(page);
+export async function validateMultipleRecordsVisible(page) {
+  const { functionalArtifactRecord } = artifactLocators(page);
+  let count = 0;
   await expect
-      .poll(async () => await viewButton.count(), {
-          timeout: 10000,
-      })
-      .toBeGreaterThan(1);
-
-  const count = await viewButton.count();
-
-  console.log(`Found ${count} View buttons`);
-
+    .poll(async () => {
+      count = await functionalArtifactRecord.count();
+      return count;
+    }, {
+      timeout: 10000,
+    })
+    .toBeGreaterThan(1);
+  console.log(`Found ${count} Functional Artifact Records`);
   return true;
 }
 
-export async function searchAndValidateSingleRecord(page) {
+export async function searchAndValidateRecord(page) {
   const { searchArtifactsButton } = artifactLocators(page);
 
   // Capture the first record name
   const nameCells = page.locator('tbody tr td').first();
-  const expectedRecord = (await nameCells.textContent()).trim();
-
+  const recordText = await nameCells.innerText();
+  if (!recordText) {
+    throw new Error('Record name cell is empty or not found');
+  }
+  const expectedRecord = recordText.trim();
   console.log(`Searching for record: ${expectedRecord}`);
 
   // Search for the record
   await searchArtifactsButton.fill(expectedRecord);
-  await page.waitForTimeout(2000);
+  await page.waitForLoadState('networkidle');
   // Get all filtered rows
   const filteredRows = page.locator('tbody tr');
   const displayedRecords = (await filteredRows.allTextContents()).map(record =>
@@ -152,21 +180,7 @@ export async function searchAndValidateSingleRecord(page) {
     }
   // Validate every displayed record matches the searched record
   for (const record of displayedRecords) {
-    if (!record.includes(expectedRecord)) {
-      throw new Error(
-        `Search validation failed. Found ${rowCount} record(s) after search. Record "${record}" does not match searched record "${expectedRecord}".`
-      );
-    }
-  }
-
-  // Validate first displayed row contains the searched record
-  await expect(filteredRows.first()).toContainText(expectedRecord);
-
-  // Validate at least one matching row is visible
-  if (!(await filteredRows.first().isVisible())) {
-    throw new Error(
-      `Search validation failed. The record "${expectedRecord}" is not visible after search.`
-    );
+    expect(record).toContain(expectedRecord);
   }
 
   console.log(
@@ -180,8 +194,8 @@ export async function validateDownloadedPlainMarkdown(page, projectName) {
   const { viewButton, overlayCloseButton } = artifactLocators(page);
   const expectedTitle = `${projectName}`;
 
-  await expect(viewButton.first()).toBeVisible({ timeout: 10000 });
-  await viewButton.first().click();
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
+  await viewButton.click();
   await expect(page.getByText(/Functional Requirements Document/i).first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
   await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
@@ -189,13 +203,13 @@ export async function validateDownloadedPlainMarkdown(page, projectName) {
   await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
-export async function validatePlainHtmlInNewWindow(page, projectId, projectName) {
+export async function validatePlainHtmlInNewWindow(page, projectName) {
   const { viewButton, artifactPreviewDialog } = artifactLocators(page);
 
   const expectedTitle = `Functional Specification - ${projectName}`;
 
-  await expect(viewButton.first()).toBeVisible({ timeout: 10000 });
-  await viewButton.first().click();
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
+  await viewButton.click();
 
   await expect(
     page.getByText(expectedTitle, { exact: false }),
@@ -223,7 +237,7 @@ export async function validatePlainHtmlInNewWindow(page, projectId, projectName)
   }
 }
 
-export async function validatePlainMarkdownInNewWindow(page, projectId, projectName) {
+export async function validatePlainMarkdownInNewWindow(page, projectName) {
   const {
     viewButton,
     mrkdwnOpenButton,
@@ -231,8 +245,8 @@ export async function validatePlainMarkdownInNewWindow(page, projectId, projectN
 
   const expectedTitle = `${projectName}`;
 
-  await expect(viewButton.first()).toBeVisible({ timeout: 10000 });
-  await viewButton.first().click();
+  await expect(viewButton).toBeVisible({ timeout: 10000 });
+  await viewButton.click();
   await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle, { timeout: 10000 });
   await expect(mrkdwnOpenButton).toBeVisible({ timeout: 10000 });
   await expect(mrkdwnOpenButton).toBeEnabled();
@@ -363,7 +377,7 @@ export async function validateCopyPlainMarkdownContent(page, projectName, projec
     return clipboardText.includes("Functional Requirements Document") && clipboardText.includes(projectName);
   }, { timeout: 15000 }).toBeTruthy();
 
-    await expect(overlayCloseButton).toBeEnabled({ timeout: 10000 });
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 10000 });
   await overlayCloseButton.click();
   await expect(overlayCloseButton).not.toBeVisible({ timeout: 10000 });
 }
@@ -386,28 +400,4 @@ export async function downloadArtifactPlainMarkdown(page, projectId) {
   await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 10000 });
   await dwnldArtifactPlainMarkdownBtn.click();
   await expect(artifactReady).toBeVisible({ timeout: 10000 });
-}
-
-export async function downloadArtifacts(page, projectId) {
-  await page.goto(`${TARGET_URL}dashboard/${projectId}`, { waitUntil: "domcontentloaded" });
-
-  const primaryNavigation = page.getByRole("navigation", { name: "Primary" });
-  await primaryNavigation
-    .getByRole("button", { name: "Artifacts", exact: true })
-    .click();
-
-  await page.getByRole('button', { name: 'Refresh artifacts' }).click();
-    
-  await page
-    .getByRole("button", { name: "Functional Documentation", exact: true })
-    .click(); 
-  
-  const plainHtmlButton = page.getByRole("button", {
-  name: "Plain HTML Interactive single"
-    }).first();  
-  
-  await expect(plainHtmlButton).toBeVisible({ timeout: 30000 });
-  await expect(plainHtmlButton).toBeEnabled({ timeout: 30000 });
-  await plainHtmlButton.click();  
-  await expect(artifactLocators(page).artifactReady).toBeVisible({ timeout: 15000 });
 }

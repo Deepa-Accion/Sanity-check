@@ -9,14 +9,21 @@ import {
   validatePlainMarkdownInNewWindow,
   validatePlainHtmlInNewWindow,
   validateCopyPlainMarkdownContent,
-  validateMultipleViewButtons,
-  searchAndValidateSingleRecord,
+  validateMultipleRecordsVisible,
+  searchAndValidateRecord,
 } from "../Pages/artifactsPage.js";
 
 import {
   DEFAULT_BASE_URL,
   createProject,
+  selectProject,
 } from "../Pages/dashboardPage.js";
+
+import {
+  generateFunctionalOntology,
+  uploadFirstDocumentForProject,
+  ensureOnboardingPage
+} from "../Pages/knowlegeBase.js";
 
 import { CreateProjectPage } from "../Pages/createProjectFile.js";
 
@@ -84,6 +91,58 @@ async function cleanupCreatedProjects(page) {
   createdProjectNames.clear();
 }
 
+async function ensureProjectCreated(page, projectState) {
+  if (projectState.projectName && projectState.projectId) {
+    return projectState;
+  }
+
+  const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
+  projectState.projectName = `SanityCheck-${currentDateTime}-Automation`;
+  const projectResponsePromise = page.waitForResponse((response) => {
+    return response.request().method() === "POST" && /projects/i.test(response.url());
+  }, { timeout: 30000 }).catch(() => null);
+  const returnedProjectId = await createProject(page, projectState.projectName);
+  const projectResponse = await projectResponsePromise;
+  const responseBody = await projectResponse?.json().catch(() => null);
+  const responseProjectId = responseBody?.uuid || responseBody?.id || responseBody?.data?.uuid || responseBody?.data?.id;
+  const url = new URL(page.url());
+  const urlProjectId = url.pathname.match(/\/dashboard\/([^/?#]+)/i)?.[1] ||
+    url.searchParams.get("projectId") ||
+    url.searchParams.get("project_id") ||
+    url.searchParams.get("uuid");
+  projectState.projectId = responseProjectId || urlProjectId || returnedProjectId;
+
+  if (!projectState.projectId || projectState.projectId === projectState.projectName) {
+    throw new Error(`Project creation did not return an ID for ${projectState.projectName}`);
+  }
+
+  console.log("Project ID:", projectState.projectId);
+  console.log("Project Name:", projectState.projectName);
+  return projectState;
+}
+
+async function ensureProjectOpen(page, projectState) {
+  await ensureProjectCreated(page, projectState);
+
+  if (page.url().includes(`/dashboard/${projectState.projectId}`) ||
+      await page.getByRole("heading", { name: projectState.projectName, exact: true }).isVisible().catch(() => false)) {
+    return projectState.projectId;
+  }
+
+  return selectProject(page, projectState.projectName);
+}
+
+async function prepareFunctionalMetrics(page, projectState) {
+  await ensureProjectOpen(page, projectState);
+  await ensureOnboardingPage(page, projectState.projectId);
+  console.log(`Selected project: ${projectState.projectName}`);
+  console.log("Step 1: Uploading document...");
+  await uploadFirstDocumentForProject(page, "pdf");
+  console.log("Step 2: Generating functional metrics (this may take 2-3 minutes)...");
+  await generateFunctionalOntology(page, projectState.projectId);
+  return projectState;
+}
+
 test.describe("Complete Regression Suite", () => {
   // Common URL navigation for every test
   test.beforeEach("Url Calling", async ({ page }) => {
@@ -121,64 +180,72 @@ test.describe("Complete Regression Suite", () => {
     await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 20000 });
   });
 
-  test("@regression @artifact download artifact plain html from the artifacts page", async ({ page }) => {
-    // Create new breeze project and download its plain html artifact  
-    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    const projectName = `SanityCheck-${currentDateTime}-Automation`;
-    const projectId = await createProject(page, projectName);
-    createdProjectNames.add(projectName);
-    await reviewArtifactsPage(page, projectId);
-    await downloadArtifactPlainHtml(page, projectId);
-    await validateCopyPlainHtmlContent(page, projectName, projectId);
-    await validateDownloadedPlainHtml(page, projectName);
-    await validatePlainHtmlInNewWindow(page, projectId, projectName);
 
-  });
+  test.describe('@artifact Artifact Tests', () => {
+    let projectName = "";
+    let projectId = "";
 
-  test("@regression @artifact download artifact plain markdown from the artifacts page", async ({ page }) => {
-    // Create new breeze project and download its plain markdown artifact
-    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    const projectName = `SanityCheck-${currentDateTime}-Automation`;
-    const projectId = await createProject(page, projectName);
-    createdProjectNames.add(projectName);
-    await downloadArtifactPlainMarkdown(page, projectId);
-    await validateDownloadedPlainMarkdown(page, projectName);
-    await validateCopyPlainMarkdownContent(page, projectName, projectId);
-    await validatePlainMarkdownInNewWindow(page, projectId, projectName);
+    test.beforeEach(async ({ page }) => {
+      const projectState = {};
+      // Ensure a project is created and open, then prepare functional metrics for artifact generation
+      await ensureProjectCreated(page, projectState);
+      await prepareFunctionalMetrics(page, projectState);
+      projectName = projectState.projectName;
+      projectId = projectState.projectId;
+      createdProjectNames.add(projectName);
+      await page.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await expect(page.getByRole("heading", { name: "Artifacts", exact: true })).toBeVisible({ timeout: 15000 });
+      
+    });
+
+    test("@regression @artifact download artifact plain html from the artifacts page", async ({ page }) => {
+      // Create new breeze project and download its plain html artifact  
+      await reviewArtifactsPage(page, projectId);
+      await downloadArtifactPlainHtml(page, projectId);
+      await validateCopyPlainHtmlContent(page, projectName, projectId);
+      await validateDownloadedPlainHtml(page, projectName);
+      await validatePlainHtmlInNewWindow(page, projectName);
+      console.log(`✅ ${test.info().title} passed`);
+
+    });
+
+    test("@regression @artifact download artifact plain markdown from the artifacts page", async ({ page }) => {
+      // Create new breeze project and download its plain markdown artifact
+      await downloadArtifactPlainMarkdown(page, projectId);
+      await validateDownloadedPlainMarkdown(page, projectName);
+      await validateCopyPlainMarkdownContent(page, projectName, projectId);
+      await validatePlainMarkdownInNewWindow(page, projectName);
+      console.log(`✅ ${test.info().title} passed`);
+    });
     
-  });
-  
-  test("@regression @artifact download artifact when already one artifact exists", async ({ page }) => {
-  /* Create new breeze project and download multiple artifacts from the artifacts page. 
-  Download plain markdown when more or more artifacts already exists. Validate the downloaded artifacts. */
-    
-    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    const projectName = `SanityCheck-${currentDateTime}-Automation`;
-    const projectId = await createProject(page, projectName);
-    await downloadArtifactPlainHtml(page, projectId);
-    await validateDownloadedPlainHtml(page, projectName);
-    await downloadArtifactPlainMarkdown(page, projectId);
-    await validateMultipleViewButtons(page);
-    await validateDownloadedPlainMarkdown(page, projectName);
-    console.log(`✅ ${test.info().title} passed`);
-  });
+    test("@regression @artifact download artifact when already one artifact exists", async ({ page }) => {
+    /* Create new breeze project and download multiple artifacts from the artifacts page. 
+    Download plain markdown when more or more artifacts already exists. Validate the downloaded artifacts. */
+      
+      await downloadArtifactPlainHtml(page, projectId);
+      await validateDownloadedPlainHtml(page, projectName);
+      await downloadArtifactPlainMarkdown(page, projectId);
+      await validateMultipleRecordsVisible(page);
+      await validateDownloadedPlainMarkdown(page, projectName);
+      console.log(`✅ ${test.info().title} passed`);
+    });
 
-  test("@regression @artifact validate search functionality on artifacts page", async ({ page }) => {
-  /* Create new breeze project and download multiple artifacts from the artifacts page. 
-  Download plain html when one or more artifacts already exists. Validate the downloaded artifacts and
-  validate the search functionality on artifacts page */
-    
-    const currentDateTime = new Date().toISOString().replace(/[:.]/g, '-');
-    const projectName = `SanityCheck-${currentDateTime}-Automation`;
-    const projectId = await createProject(page, projectName, projectName);
-    await downloadArtifactPlainMarkdown(page, projectId);
-    await validateDownloadedPlainMarkdown(page, projectName);
-    await downloadArtifactPlainHtml(page, projectId);
-    await validateMultipleViewButtons(page);
-    await validateDownloadedPlainHtml(page, projectName);
-    await searchAndValidateSingleRecord(page);
+    test("@regression @artifact validate search functionality on artifacts page", async ({ page }) => {
+    /* Create new breeze project and download multiple artifacts from the artifacts page. 
+    Download plain html when one or more artifacts already exists. Validate the downloaded artifacts and
+    validate the search functionality on artifacts page */
+      await downloadArtifactPlainMarkdown(page, projectId);
+      await validateDownloadedPlainMarkdown(page, projectName);
+      await downloadArtifactPlainHtml(page, projectId);
+      await validateMultipleRecordsVisible(page);
+      await validateDownloadedPlainHtml(page, projectName);
+      await searchAndValidateRecord(page);
+      console.log(`✅ ${test.info().title} passed`);
+    });
 
-  });
+  });  
   
   test("@regression rejects an empty project name without creating a project", async ({
     page,
