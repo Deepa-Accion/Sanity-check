@@ -168,7 +168,36 @@ export async function uploadFirstDocumentInKnowledgeBase (page, fileType = 'pdf'
   
 }
 
+export async function uploadFirstDocumentForProject(page, fileType = 'pdf') {
+  // Delegates to the proven file-chooser approach on the functional ontology page
+  await uploadFirstDocumentInKnowledgeBase(page, fileType);
+}
 
+export async function ensureOnboardingPage(page, projectId) {
+  const base = (process.env.TARGET_URL || 'https://ai.accionbreeze.com/').replace(/\/$/, '');
+  if (!page.url().includes('onboarding')) {
+    await page.goto(`${base}/onboarding/${projectId}`);
+    await expect(page).toHaveURL(/onboarding/);
+  }
+  await page.waitForLoadState('networkidle');
+}
+
+export async function generateFunctionalOntology(page, projectId) {
+  console.log('[generateFunctionalOntology] Navigating to functional ontology page');
+  await _navigateToOntologyPage(page, 'functional');
+  await page.waitForTimeout(2000);
+
+  await expect.poll(async () => {
+    const generated = await page.locator('p:has-text("Generated")').first().isVisible().catch(() => false);
+    if (!generated) {
+      const refreshBtn = page.locator('button[aria-label*="refresh" i], button:has-text("Refresh")').first();
+      await refreshBtn.click().catch(() => {});
+      await page.waitForTimeout(2000);
+    }
+    return generated;
+  }, { timeout: 180000, intervals: [5000, 10000, 15000] }).toBe(true);
+  console.log('[generateFunctionalOntology] Functional ontology confirmed as Generated');
+}
 
 export async function uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, fileType = 'pdf') {
   await selectKnowleedgeBaseTab(page);
