@@ -4,7 +4,7 @@ import {
   reviewArtifactsPage,
   validateCopyPlainHtmlContent,
   downloadArtifactPlainMarkdown,
-  validateDownloadedPlainHtml, 
+  validateDownloadedPlainHtml,
   validateDownloadedPlainMarkdown,
   validatePlainMarkdownInNewWindow,
   validatePlainHtmlInNewWindow,
@@ -22,26 +22,17 @@ import {
 import {
   generateFunctionalOntology,
   uploadFirstDocumentForProject,
-  ensureOnboardingPage
 } from "../Pages/knowlegeBase.js";
 
 import { CreateProjectPage } from "../Pages/createProjectFile.js";
 
 const createdProjectNames = new Set();
 
-
 const uniqueProjectName = (suffix) =>
   `Playwright-CreateProject-${suffix}-${Date.now()}`;
 
-// ============================================================
-// Create Project - Employee Level Test Cases
-// The following test cases validate Create Project functionality
-// at the Employee level.
-// ============================================================
-
 
 async function openCreateProject(page) {
-  // Open application using configured base URL
   await page.goto(DEFAULT_BASE_URL, {
     waitUntil: "domcontentloaded",
   });
@@ -98,18 +89,22 @@ async function ensureProjectCreated(page, projectState) {
 
   const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
   projectState.projectName = `SanityCheck-${currentDateTime}-Automation`;
+
   const projectResponsePromise = page.waitForResponse((response) => {
     return response.request().method() === "POST" && /projects/i.test(response.url());
   }, { timeout: 30000 }).catch(() => null);
+
   const returnedProjectId = await createProject(page, projectState.projectName);
   const projectResponse = await projectResponsePromise;
   const responseBody = await projectResponse?.json().catch(() => null);
   const responseProjectId = responseBody?.uuid || responseBody?.id || responseBody?.data?.uuid || responseBody?.data?.id;
+
   const url = new URL(page.url());
   const urlProjectId = url.pathname.match(/\/dashboard\/([^/?#]+)/i)?.[1] ||
     url.searchParams.get("projectId") ||
     url.searchParams.get("project_id") ||
     url.searchParams.get("uuid");
+
   projectState.projectId = responseProjectId || urlProjectId || returnedProjectId;
 
   if (!projectState.projectId || projectState.projectId === projectState.projectName) {
@@ -134,17 +129,15 @@ async function ensureProjectOpen(page, projectState) {
 
 async function prepareFunctionalMetrics(page, projectState) {
   await ensureProjectOpen(page, projectState);
-  await ensureOnboardingPage(page, projectState.projectId);
   console.log(`Selected project: ${projectState.projectName}`);
   console.log("Step 1: Uploading document...");
-  await uploadFirstDocumentForProject(page, "pdf");
+  await uploadFirstDocumentForProject(page, "txt");
   console.log("Step 2: Generating functional metrics (this may take 2-3 minutes)...");
   await generateFunctionalOntology(page, projectState.projectId);
   return projectState;
 }
 
 test.describe("Complete Regression Suite", () => {
-  // Common URL navigation for every test
   test.beforeEach("Url Calling", async ({ page }) => {
     await page.goto(DEFAULT_BASE_URL, {
       waitUntil: "domcontentloaded",
@@ -156,12 +149,8 @@ test.describe("Complete Regression Suite", () => {
   });
 
   test("@regression BreezeAI dashboard Launched", async ({ page }) => {
-    // beforeEach() has already opened the application
-
     const title = await page.title();
-
     console.log("Page title after execution:", title);
-
     expect(title).toMatch(/Breeze\.AI/i);
   });
 
@@ -180,50 +169,44 @@ test.describe("Complete Regression Suite", () => {
     await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 20000 });
   });
 
-
   test.describe('@artifact Artifact Tests', () => {
     let projectName = "";
     let projectId = "";
 
     test.beforeEach(async ({ page }) => {
-      const projectState = {};
-      // Ensure a project is created and open, then prepare functional metrics for artifact generation
-      await ensureProjectCreated(page, projectState);
-      await prepareFunctionalMetrics(page, projectState);
-      projectName = projectState.projectName;
-      projectId = projectState.projectId;
-      createdProjectNames.add(projectName);
+      // Create and prepare the project only once; reuse across all @artifact tests
+      if (!projectName || !projectId) {
+        const projectState = {};
+        await ensureProjectCreated(page, projectState);
+        await prepareFunctionalMetrics(page, projectState);
+        projectName = projectState.projectName;
+        projectId = projectState.projectId;
+        createdProjectNames.add(projectName);
+      }
       await page.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, {
         waitUntil: "domcontentloaded",
       });
       await expect(page.getByRole("heading", { name: "Artifacts", exact: true })).toBeVisible({ timeout: 15000 });
-      
     });
 
     test("@regression @artifact download artifact plain html from the artifacts page", async ({ page }) => {
-      // Create new breeze project and download its plain html artifact  
       await reviewArtifactsPage(page, projectId);
       await downloadArtifactPlainHtml(page, projectId);
       await validateCopyPlainHtmlContent(page, projectName, projectId);
       await validateDownloadedPlainHtml(page, projectName);
       await validatePlainHtmlInNewWindow(page, projectName);
       console.log(`✅ ${test.info().title} passed`);
-
     });
 
     test("@regression @artifact download artifact plain markdown from the artifacts page", async ({ page }) => {
-      // Create new breeze project and download its plain markdown artifact
       await downloadArtifactPlainMarkdown(page, projectId);
       await validateDownloadedPlainMarkdown(page, projectName);
       await validateCopyPlainMarkdownContent(page, projectName, projectId);
       await validatePlainMarkdownInNewWindow(page, projectName);
       console.log(`✅ ${test.info().title} passed`);
     });
-    
+
     test("@regression @artifact download artifact when already one artifact exists", async ({ page }) => {
-    /* Create new breeze project and download multiple artifacts from the artifacts page. 
-    Download plain markdown when more or more artifacts already exists. Validate the downloaded artifacts. */
-      
       await downloadArtifactPlainHtml(page, projectId);
       await validateDownloadedPlainHtml(page, projectName);
       await downloadArtifactPlainMarkdown(page, projectId);
@@ -233,9 +216,6 @@ test.describe("Complete Regression Suite", () => {
     });
 
     test("@regression @artifact validate search functionality on artifacts page", async ({ page }) => {
-    /* Create new breeze project and download multiple artifacts from the artifacts page. 
-    Download plain html when one or more artifacts already exists. Validate the downloaded artifacts and
-    validate the search functionality on artifacts page */
       await downloadArtifactPlainMarkdown(page, projectId);
       await validateDownloadedPlainMarkdown(page, projectName);
       await downloadArtifactPlainHtml(page, projectId);
@@ -244,9 +224,8 @@ test.describe("Complete Regression Suite", () => {
       await searchAndValidateRecord(page);
       console.log(`✅ ${test.info().title} passed`);
     });
+  });
 
-  });  
-  
   test("@regression rejects an empty project name without creating a project", async ({
     page,
   }) => {
@@ -263,9 +242,6 @@ test.describe("Complete Regression Suite", () => {
     const createProjectPage = await openCreateProject(page);
 
     await createProjectPage.fillProjectName(" ");
-
-    // Save should remain disabled when the project name
-    // contains only whitespace.
 
     await expect(createProjectPage.saveButton).toBeDisabled();
   });
@@ -310,7 +286,6 @@ test.describe("Complete Regression Suite", () => {
   }) => {
     const name = uniqueProjectName("duplicate");
 
-    // Create first project
     const first = await openCreateProject(page);
 
     await first.fillProjectName(name);
@@ -323,7 +298,6 @@ test.describe("Complete Regression Suite", () => {
       })
       .toMatch(/dashboard/i);
 
-    // Try creating the same project again
     const second = await openCreateProject(page);
 
     await second.fillProjectName(name);
@@ -361,4 +335,3 @@ test.describe("Complete Regression Suite", () => {
     ).toBeVisible();
   });
 });
-

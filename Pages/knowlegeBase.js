@@ -168,116 +168,35 @@ export async function uploadFirstDocumentInKnowledgeBase (page, fileType = 'pdf'
   
 }
 
-export async function uploadFirstDocumentForProject (page, fileType = 'pdf') {
-  console.log('[uploadFirstDocumentForProject] Starting document upload process');
-  // Click Initialize Knowledge button or look for Upload Documents option
-  let initBtn = page.getByRole('button', { name: /initialize\s+knowledge/i }).first();
-  let found = await initBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  if (!found) {
-    initBtn = page.locator('button').filter({ hasText: /Initialize\s+Knowledge/i }).first();
-    found = await initBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (!found) {
-    // Try to find Upload Documents button in wizard
-    initBtn = page.locator('button, div').filter({ hasText: /Upload Documents/i }).first();
-    found = await initBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadFirstDocumentForProject] Clicking Initialize/Upload button');
-    await initBtn.click();
-  } else {
-    console.log('[uploadFirstDocumentForProject] Initialize/Upload button not found!');
-  }
-  
-  // Set file input - wait for it to appear
-  const fileInput = page.locator('input[type="file"]').first();
-  let inputFound = await fileInput.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!inputFound) {
-    inputFound = await fileInput.count().catch(() => 0) > 0;
-  }
-  if (inputFound) {
-    const filePath = `${__dirname}/../documents/test_ecommerce.${fileType}`;
-    console.log('[uploadFirstDocumentForProject] Setting file input:', filePath);
-    try {
-      await fileInput.setInputFiles(filePath);
-      console.log('[uploadFirstDocumentForProject] File input set successfully');
-    } catch (e) {
-      console.error('[uploadFirstDocumentForProject] Error setting file input:', e.message);
-    }
-    // Wait for file to be processed
-    await expect(
-      page.getByText('Selected Files')
-    ).toBeVisible({ timeout: 8000 });
-  } else {
-    console.log('[uploadFirstDocumentForProject] File input not found!');
-  }
-  
-  // Click Submit/Start Analysis button
-  let submitBtn = page.locator('button').filter({ hasText: /Submit|Start\s+Analysis|Upload|Confirm/i }).first();
-  let found3 = await submitBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  
-  if (found3) {
-    const buttonText = await submitBtn.textContent();
-    console.log('[uploadFirstDocumentForProject] Found submit button:', buttonText);
-    try {
-      await submitBtn.click();
-      console.log('[uploadFirstDocumentForProject] Submit button clicked');
-      // Wait for upload to process
-      await expect(
-      page.getByText('uploaded')
-    ).toBeVisible({ timeout: 8000 });;
-    } catch (e) {
-      console.error('[uploadFirstDocumentForProject] Error clicking submit:', e.message);
-    }
-  } else {
-    console.log('[uploadFirstDocumentForProject] Submit button not found!');
-  }
-  
-  console.log('[uploadFirstDocumentForProject] Document upload process completed');
-  
+export async function uploadFirstDocumentForProject(page, fileType = 'pdf') {
+  // Delegates to the proven file-chooser approach on the functional ontology page
+  await uploadFirstDocumentInKnowledgeBase(page, fileType);
 }
 
-
 export async function ensureOnboardingPage(page, projectId) {
+  const base = (process.env.TARGET_URL || 'https://ai.accionbreeze.com/').replace(/\/$/, '');
   if (!page.url().includes('onboarding')) {
-    await page.goto(`https://ai.accionbreeze.com/onboarding/${projectId}`);
+    await page.goto(`${base}/onboarding/${projectId}`);
     await expect(page).toHaveURL(/onboarding/);
   }
   await page.waitForLoadState('networkidle');
 }
 
 export async function generateFunctionalOntology(page, projectId) {
-  console.log('[generateFunctionalOntology] Starting functional ontology generation');
-  
-  // First, ensure we're on the onboarding page
-  await ensureOnboardingPage(page, projectId);
-  await page.getByRole('button', { name: 'Next' }).click({ timeout: 2000 });
-  await page.getByRole('button', { name: 'Next' }).click({ timeout: 2000 });
-  
-  // Look for Generate Metrics button
-  let genMetricBtn = await page.getByText('Generate', { exact: true });
-  let found = await genMetricBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  
-  if (!found) {
-    // Look for button with icon (metrics button might just have an icon)
-    genMetricBtn = page.locator('button').filter({ hasText: /^$/ }).nth(5);
-    found = await genMetricBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  }
-  
-  if (found) {
-    console.log('[generateFunctionalOntology] Clicking Generate Metrics button');
-    try {
-      await genMetricBtn.click();
-      console.log('[generateFunctionalOntology] Generate Metrics button clicked - waiting for processing (2-3 minutes)');
-      // Wait for metrics generation - this can take 2-3 minutes
-      await expect(page.getByText('Functional ontology generated')).toBeVisible({ timeout: 180000 }); // 3 minutes
-      console.log('[generateFunctionalOntology] Metrics generation completed');
-    } catch (e) {
-      console.error('[generateFunctionalOntology] Error:', e.message);
+  console.log('[generateFunctionalOntology] Navigating to functional ontology page');
+  await _navigateToOntologyPage(page, 'functional');
+  await page.waitForTimeout(2000);
+
+  await expect.poll(async () => {
+    const generated = await page.locator('p:has-text("Generated")').first().isVisible().catch(() => false);
+    if (!generated) {
+      const refreshBtn = page.locator('button[aria-label*="refresh" i], button:has-text("Refresh")').first();
+      await refreshBtn.click().catch(() => {});
+      await page.waitForTimeout(2000);
     }
-  } else {
-    console.log('[generateFunctionalOntology] Generate Metrics button not found!');
-  }
+    return generated;
+  }, { timeout: 180000, intervals: [5000, 10000, 15000] }).toBe(true);
+  console.log('[generateFunctionalOntology] Functional ontology confirmed as Generated');
 }
 
 export async function uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, fileType = 'pdf') {
