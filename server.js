@@ -8,6 +8,11 @@ const app = express();
 const port = process.env.PORT || 3001;
 const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
 
+// Target URLs per environment
+const BREEZE_PROD_URL  = 'https://breezeai.accion.rocks/';
+const ACCION_DEV_URL   = 'https://connect-new.accionbreeze.com/content';
+const ACCION_PROD_URL  = 'https://connect.accionlabs.com/home';
+
 app.use(cors());
 app.use(express.json());
 
@@ -21,7 +26,7 @@ app.post("/api/run-test", async (req, res) => {
     return res.status(409).json({ error: "A test run is already in progress." });
   }
 
-  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl } = req.body;
+  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role, clientUrl } = req.body;
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -31,11 +36,69 @@ app.post("/api/run-test", async (req, res) => {
     'accionconnect sanity prod': 'tests/sanity_accionprod.spec.mjs',
     'breezeai complete regression dev': 'tests/completeregression.spec.mjs',
     // Localhost sanity: source spec is the dev sanity suite; a localhost copy is generated below.
-    'breezeai sanity localhost': 'tests/sanity.spec.mjs'
+    'breezeai sanity localhost': 'tests/sanity.spec.mjs',
+    // Client sanity: reuses the prod sanity suite — TARGET_URL is set to the client-supplied URL.
+    'client based sanity': 'tests/sanity_prod.spec.mjs',
   };
 
   const normalizedScenario = (testScenario || '').toLowerCase();
   let specFile = scenarioMap[normalizedScenario] || null;
+
+  // Client sanity: user supplies their own deployment URL + credentials.
+  const clientSanityMode = normalizedScenario === 'client based sanity';
+  let normalizedClientUrl = null;
+  if (clientSanityMode) {
+    if (!clientUrl) {
+      return res.status(400).json({ error: 'Missing clientUrl for client based sanity.' });
+    }
+    try {
+      const u = new URL(clientUrl);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+      normalizedClientUrl = u.href.endsWith('/') ? u.href : `${u.href}/`;
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid clientUrl — must be a valid http(s) URL.' });
+    }
+    if (!prodKey || !prodToken) {
+      return res.status(400).json({ error: 'Missing prodKey or prodToken for client based sanity.' });
+    }
+    let tokenValue;
+    try { tokenValue = JSON.parse(prodToken); } catch { tokenValue = prodToken; }
+    fs.writeFileSync(path.join(process.cwd(), 'session-auth.json'), JSON.stringify({ key: prodKey, value: tokenValue }, null, 2), 'utf8');
+    console.log(`[server] session-auth.json updated for client sanity (url: ${normalizedClientUrl}).`);
+  }
+
+  // Scenarios that require manually supplied key+token (no OIDC browser login).
+  const manualAuthScenarios = ['breezeai sanity prod', 'accionconnect sanity dev', 'accionconnect sanity prod'];
+  const manualAuthMode = manualAuthScenarios.includes(normalizedScenario);
+
+  if (manualAuthMode) {
+    if (!prodKey || !prodToken) {
+      return res.status(400).json({ error: 'Missing prodKey or prodToken for this scenario.' });
+    }
+    let tokenValue;
+    try {
+      tokenValue = JSON.parse(prodToken);
+    } catch {
+      tokenValue = prodToken;
+    }
+    const payload = JSON.stringify({ key: prodKey, value: tokenValue }, null, 2);
+
+    // Always write to session-auth.json so the default { page } fixture works
+    fs.writeFileSync(path.join(process.cwd(), 'session-auth.json'), payload, 'utf8');
+
+    // Also write to the role-specific file so roles.fixture.mjs picks up the right session
+    const roleFileMap = {
+      admin:   'session-auth-admin.json',
+      viewer:  'session-auth-viewer.json',
+      default: null,
+    };
+    const roleFile = roleFileMap[role] ?? null;
+    if (roleFile) {
+      fs.writeFileSync(path.join(process.cwd(), roleFile), payload, 'utf8');
+    }
+
+    console.log(`[server] session-auth.json updated (role: ${role || 'default'}).`);
+  }
 
   // Localhost mode: validate the URL, generate a copy of the source sanity spec with the
   // dev URL swapped for the user's localhost URL, and run that copy without OIDC auth.
@@ -106,6 +169,25 @@ app.post("/api/run-test", async (req, res) => {
     childEnv.TARGET_URL = targetUrl;
     childEnv.LOCALHOST_RUN = 'true';
     logs.push(`Localhost mode: targeting ${targetUrl} (authentication skipped).`);
+  }
+  if (manualAuthMode) {
+    const urlMap = {
+      'breezeai sanity prod': BREEZE_PROD_URL,
+      'accionconnect sanity dev': ACCION_DEV_URL,
+      'accionconnect sanity prod': ACCION_PROD_URL,
+    };
+    childEnv.TARGET_URL = urlMap[normalizedScenario];
+    childEnv.SKIP_OIDC = 'true';
+    if (role) childEnv.ROLE = role;
+    logs.push(`Manual-auth mode: targeting ${childEnv.TARGET_URL} (role: ${role || 'default'}, credentials loaded from session-auth.json).`);
+  }
+  if (!manualAuthMode && !clientSanityMode && role) {
+    childEnv.ROLE = role;
+  }
+  if (clientSanityMode) {
+    childEnv.TARGET_URL = normalizedClientUrl;
+    childEnv.SKIP_OIDC = 'true';
+    logs.push(`Client sanity mode: targeting ${childEnv.TARGET_URL} (credentials loaded from session-auth.json).`);
   }
   if (!headless) {
     args.push("--headed");
