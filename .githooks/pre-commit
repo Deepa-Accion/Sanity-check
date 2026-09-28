@@ -1,0 +1,20 @@
+#!/bin/sh
+# Block .env files from being committed.
+# Covers: .env, .env.local, .env.production, .env.staging, .env.development, .env.test, etc.
+
+blocked=$(git diff --cached --name-only | grep -E '(^|/)\.(env)(\.[^/]*)?$')
+
+if [ -n "$blocked" ]; then
+  echo ""
+  echo "COMMIT REJECTED: .env file(s) must not be committed."
+  echo ""
+  echo "  Blocked file(s):"
+  echo "$blocked" | sed 's/^/    /'
+  echo ""
+  echo "  Remove them from the commit with:"
+  echo "    git restore --staged <file>"
+  echo ""
+  echo "  Make sure the file is listed in .gitignore so this cannot happen again."
+  echo ""
+  exit 1
+fi

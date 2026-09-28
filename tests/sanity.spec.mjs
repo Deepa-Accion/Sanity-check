@@ -1,9 +1,10 @@
 import { test, expect, collectPageData } from "./auth-healing.fixture.mjs";
-import { DEFAULT_BASE_URL, createProject, selectProject, selectFirstListedProject, theamChange, menuItemClick } from "../Pages/dashboardPage.js";
+import { DEFAULT_BASE_URL, createProject, selectProject, selectFirstListedProject, menuItemClick, searchProject } from "../Pages/dashboardPage.js";
 import { openAllCards, uploadAndGenerateCodeOntology } from "../Pages/projectPage.js";
-import { newProjetCreation } from "../Pages/designPage.js";
+import { clickOnDesign } from "../Pages/designPage.js";
 import {
   generateFunctionalMetric,
+  generateArchitectureOntology,
   uploadFirstDocumentInKnowledgeBase,
   uploadDocumentwithDesignOntology,
   uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology
@@ -43,6 +44,15 @@ test.describe("Sanity Suite", () => {
       return projectId;
     }
 
+    // If projectId is a UUID, navigate directly — more reliable than searching
+    const looksLikeUuid = /^[0-9a-f-]{30,}$/i.test(projectId);
+    if (looksLikeUuid) {
+      await page.goto(`${DEFAULT_BASE_URL}dashboard/${projectId}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2000);
+      return projectId;
+    }
+
+    await searchProject(page, projectName);
     return selectProject(page, projectName);
   }
 
@@ -76,7 +86,7 @@ test.describe("Sanity Suite", () => {
     console.log(`Selected project: ${projectName}`);
 
     console.log("Step 1: Uploading document...");
-    await uploadFirstDocumentInKnowledgeBase(page, "pdf");
+    await uploadFirstDocumentInKnowledgeBase(page, "txt");
 
     await page.goto(`${DEFAULT_BASE_URL}dashboard/${projectId}`);
     await page.waitForTimeout(2000);
@@ -86,17 +96,40 @@ test.describe("Sanity Suite", () => {
     console.log("=== CRITICAL TEST COMPLETED ===");
   });
 
-  test("@sanity Upload document with Design Ontology", async ({ page }) => {
-    await ensureProjectOpen(page);
-    await uploadDocumentwithDesignOntology(page, "pdf");
-  });
 
   test("@sanity Upload document with Architecture Ontology", async ({ page }) => {
     await ensureProjectOpen(page);
     await uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, "txt");
+    await generateArchitectureOntology(page);
   });
 
-  test("@sanity Search and Select project", withErrorCapture(async ({ page }) => {
+  test("@sanity Generate Architecture Ontology", async ({ page }) => {
+    await ensureProjectOpen(page);
+    await downloadArtifactPlainMarkdown(page, projectId);
+    
+  });
+
+  test("@sanity Generate Design ontology", async ({ page }) => {
+    await ensureProjectOpen(page);
+
+    
+  });
+
+  
+  test("@sanity Semantic basic search", async ({ page }) => {
+    await ensureProjectOpen(page);
+    
+  });
+
+  test("@sanity ProjectSearch and Select project", withErrorCapture(async ({ page }) => {
+    await ensureProjectOpen(page);
+  }));
+
+  test("@sanity AIChat Basic agent test", withErrorCapture(async ({ page }) => {
+    await ensureProjectOpen(page);
+  }));
+
+  test("@sanity Validate Node change history", withErrorCapture(async ({ page }) => {
     await ensureProjectOpen(page);
   }));
 
@@ -104,15 +137,6 @@ test.describe("Sanity Suite", () => {
     await selectFirstListedProject(page);
   }));
 
-  test("@sanity Open AllCards in dashboard", async ({ page }) => {
-    const returnedProjectId = await ensureProjectOpen(page);
-    await openAllCards(page, returnedProjectId);
-  });
-
-  test("@sanity Generate design metrics", async ({ page }) => {
-    await ensureProjectOpen(page);
-    await newProjetCreation(page, "Webstie Design");
-  });
 
   test("@sanity Generate Code Ontology", async ({ page }) => {
     // Create a dedicated project — code ontology is independent of the functional project

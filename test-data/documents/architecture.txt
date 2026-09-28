@@ -1,0 +1,10 @@
+# Test Architecture Document - BREEZEAI-886 QA
+
+## System Components
+- API Gateway: Routes incoming requests
+- Auth Service: Handles authentication
+- Database: PostgreSQL primary store
+
+## Connections
+- Frontend → API Gateway → Auth Service
+- API Gateway → Database

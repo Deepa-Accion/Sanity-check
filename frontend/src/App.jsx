@@ -21,9 +21,18 @@ export default function App() {
   const [role, setRole] = useState("default");
   const [clientUrl, setClientUrl] = useState("");
   const [clientUrlError, setClientUrlError] = useState(null);
+  // Module filter for regression dev: null = all modules (no filter sent to server)
+  const ALL_REGRESSION_MODULES = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "createproject", label: "Create Project" },
+    { key: "artifact", label: "Artifacts" },
+  ];
+  const [selectedModules, setSelectedModules] = useState([]);
   const logsRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [notification, setNotification] = useState(null);
+
+  const isRegressionDev = testScenario === "Breezeai complete regression dev";
 
   // Localhost sanity mode: user supplies a localhost URL instead of credentials.
   const isLocalhost = testScenario === "Breezeai sanity localhost";
@@ -128,13 +137,16 @@ export default function App() {
     }
 
     try {
+      // For regression dev: send selected modules (empty array = run all)
+      const modulesPayload = isRegressionDev ? selectedModules : undefined;
+
       const body = isLocalhost
         ? { testScenario, browser, headless, isLocalhost: true, localhostUrl: localhostUrl.trim() }
         : isClientSanity
         ? { testScenario, browser, headless, clientUrl: clientUrl.trim(), prodKey: prodKey.trim(), prodToken: prodToken.trim() }
         : requiresManualAuth
         ? { testScenario, browser, headless, role, prodKey: prodKey.trim(), prodToken: prodToken.trim() }
-        : { testScenario, browser, headless, role };
+        : { testScenario, browser, headless, role, ...(modulesPayload !== undefined && { modules: modulesPayload }) };
 
       const response = await fetch("/api/run-test", {
         signal: controller.signal,
@@ -439,6 +451,32 @@ export default function App() {
               <option value="webkit">WebKit</option>
             </select>
           </div>
+
+          {/* Module filter — only for Regression Dev */}
+          {isRegressionDev && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Modules</label>
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
+                Leave all unchecked to run every module.
+              </div>
+              {ALL_REGRESSION_MODULES.map(({ key, label }) => (
+                <div key={key} style={{ ...styles.checkboxContainer, marginBottom: 6 }}>
+                  <input
+                    type="checkbox"
+                    id={`module-${key}`}
+                    checked={selectedModules.includes(key)}
+                    disabled={testInProgress}
+                    onChange={(e) => {
+                      setSelectedModules((prev) =>
+                        e.target.checked ? [...prev, key] : prev.filter((m) => m !== key)
+                      );
+                    }}
+                  />
+                  <label htmlFor={`module-${key}`} style={{ fontSize: 14 }}>{label}</label>
+                </div>
+              ))}
+            </div>
+          )}
 
           {showRoleSelector && (
             <div style={styles.formGroup}>

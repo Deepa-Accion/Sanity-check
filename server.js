@@ -26,7 +26,7 @@ app.post("/api/run-test", async (req, res) => {
     return res.status(409).json({ error: "A test run is already in progress." });
   }
 
-  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role, clientUrl } = req.body;
+  const { testType, testScenario, browser, headless, isLocalhost, localhostUrl, prodKey, prodToken, role, clientUrl, modules } = req.body;
 
   // Map test scenarios to explicit spec files when possible
   const scenarioMap = {
@@ -34,7 +34,7 @@ app.post("/api/run-test", async (req, res) => {
     'breezeai sanity prod': 'tests/sanity_prod.spec.mjs',
     'accionconnect sanity dev': 'tests/sanity_acciondev.spec.mjs',
     'accionconnect sanity prod': 'tests/sanity_accionprod.spec.mjs',
-    'breezeai complete regression dev': 'tests/completeregression.spec.mjs',
+    'breezeai complete regression dev': 'tests/regression',
     // Localhost sanity: source spec is the dev sanity suite; a localhost copy is generated below.
     'breezeai sanity localhost': 'tests/sanity.spec.mjs',
     // Client sanity: reuses the prod sanity suite — TARGET_URL is set to the client-supplied URL.
@@ -136,17 +136,28 @@ app.post("/api/run-test", async (req, res) => {
   logs.push(`Running scenario: ${testScenario || testType}`);
   if (specFile) logs.push(`Executing spec: ${specFile}`);
 
-  // Build Playwright args: prefer running a specific spec file when mapped, otherwise fall back to using a @tag grep
+  // Per-module spec files for the regression suite.
+  // Keys match what the UI sends in the `modules` array.
+  const REGRESSION_MODULE_FILES = {
+    dashboard:     'tests/regression/dashboard.spec.mjs',
+    createproject: 'tests/regression/createproject.spec.mjs',
+    artifact:      'tests/regression/artifacts.spec.mjs',
+  };
+
+  // Build Playwright args: prefer running a specific spec file/folder when mapped, otherwise fall back to using a @tag grep
   let args;
   if (specFile) {
-    args = [
-      'playwright',
-      'test',
-      specFile,
-      '--project',
-      browser,
-      '--workers=1'
-    ];
+    const selectedModules = Array.isArray(modules) ? modules.filter(Boolean) : [];
+    const useModuleFiles = selectedModules.length > 0 && normalizedScenario.includes('regression');
+    const specArgs = useModuleFiles
+      ? selectedModules.map(m => REGRESSION_MODULE_FILES[m]).filter(Boolean)
+      : [specFile];
+
+    args = ['playwright', 'test', ...specArgs, '--project', browser, '--workers=1'];
+
+    if (useModuleFiles) {
+      logs.push(`Module filter: running [${selectedModules.join(', ')}] → ${specArgs.join(', ')}`);
+    }
   } else {
     const tag = testType || (normalizedScenario.includes('regression') ? 'regression' : 'sanity');
     logs.push(`No specific spec file mapped. Falling back to @${tag} grep.`);

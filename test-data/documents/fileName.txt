@@ -1,0 +1,1 @@
+Ecommerce website which has Admin and customer as personas who are eligible to take order by clicking on add to cart and complete payment details at the end user will receive order confirmation details

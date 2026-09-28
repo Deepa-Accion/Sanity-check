@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config as loadEnv } from "dotenv";
+loadEnv();
 
 // Exclude deviceScaleFactor from Desktop Chrome device to allow null viewport
 const { deviceScaleFactor: _dsf, ...DesktopChromeNoDsf } = devices['Desktop Chrome'];
