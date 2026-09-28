@@ -1,7 +1,7 @@
 import { test, expect, collectPageData } from "./auth-healing.fixture.mjs";
 import { DEFAULT_BASE_URL, createProject, selectProject, selectFirstListedProject, menuItemClick, searchProject } from "../Pages/dashboardPage.js";
 import { openAllCards, uploadAndGenerateCodeOntology } from "../Pages/projectPage.js";
-import { newProjetCreation } from "../Pages/designPage.js";
+import { clickOnDesign } from "../Pages/designPage.js";
 import {
   generateFunctionalMetric,
   generateArchitectureOntology,
@@ -88,7 +88,7 @@ test.describe("Sanity Suite", () => {
     console.log("Step 1: Uploading document...");
     await uploadFirstDocumentInKnowledgeBase(page, "txt");
 
-    await page.goto(`${DEFAULT_BASE_URL}/dashboard/${projectId}`);
+    await page.goto(`${DEFAULT_BASE_URL}dashboard/${projectId}`);
     await page.waitForTimeout(2000);
     
     console.log("Step 2: Generating functional metrics (this may take 2-3 minutes)...");
