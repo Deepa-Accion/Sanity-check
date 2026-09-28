@@ -47,7 +47,7 @@ export async function uploadDocumentInKnowledgeBase(page, fileType = 'pdf') {
   // Set file input
   const fileInput = page.locator('input[type="file"]').first();
   if (await fileInput.count().catch(() => 0)) {
-    const filePath = join(__dirname, '..', 'documents', `fileName.${fileType}`);
+    const filePath = join(__dirname, '..', 'test-data', 'documents', `fileName.${fileType}`);
     await fileInput.setInputFiles(filePath);
   }
   
@@ -71,7 +71,7 @@ export async function uploadDocumentInKnowledgeBase(page, fileType = 'pdf') {
 export async function uploadFirstpdfDocument(page) {
   console.log('[uploadFirstDocumentInKnowledgeBase] Navigating to functional ontology page');
   await _navigateToOntologyPage(page, 'functional');
-  const filePath = `${__dirname}/../documents/ice_cream_ecommerce.pdf`;
+  const filePath = `${__dirname}/../test-data/documents/ice_cream_ecommerce.pdf`;
   await _uploadFileOnOntologyPage(page, filePath);
   console.log('[uploadFirstDocumentInKnowledgeBase] Upload complete');
 }
@@ -83,7 +83,7 @@ export async function netButtonClickOnObardingPage(page) {
 export async function uploadFirstDocumentInKnowledgeBase(page, fileType = 'pdf') {
   console.log('[uploadFirstDocumentInKnowledgeBase] Navigating to functional ontology page');
   await _navigateToOntologyPage(page, 'functional');
-  const filePath = `${__dirname}/../documents/fileName.${fileType}`;
+  const filePath = `${__dirname}/../test-data/documents/fileName.${fileType}`;
   console.log('[uploadFirstDocumentInKnowledgeBase] Uploading:', filePath);
   await _uploadFileOnOntologyPage(page, filePath);
   console.log('[uploadFirstDocumentInKnowledgeBase] Upload complete');
@@ -123,7 +123,7 @@ export async function generateFunctionalOntology(page) {
 export async function uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, fileType = 'txt') {
   console.log('[uploadArchitecture] Navigating to architecture ontology page');
   await _navigateToOntologyPage(page, 'architecture');
-  const filePath = `${__dirname}/../documents/architecture.txt`;
+  const filePath = `${__dirname}/../test-data/documents/architecture.txt`;
   console.log('[uploadArchitecture] Uploading:', filePath);
   await _uploadFileOnOntologyPage(page, filePath);
   console.log('[uploadArchitecture] Upload complete');
@@ -132,7 +132,7 @@ export async function uploadFirstDocumentInKnowledgeBasewithartictecturemodeling
 export async function uploadDocumentwithDesignOntology(page, fileType = 'pdf') {
   console.log('[uploadDesign] Navigating to design ontology page');
   await _navigateToOntologyPage(page, 'design');
-  const filePath = `${__dirname}/../documents/fileName.${fileType}`;
+  const filePath = `${__dirname}/../test-data/documents/fileName.${fileType}`;
   console.log('[uploadDesign] Uploading:', filePath);
   await _uploadFileOnOntologyPage(page, filePath);
   console.log('[uploadDesign] Upload complete');
@@ -249,6 +249,6 @@ export async function connectRepoInKnowledgeBase(page, gitURL) {
 
 export async function uploadDocumentInAIChat(page, fileType = 'pdf', projectId) {
   await page.goto(`${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}chat/requirement_agent/${projectId}`);
-  const filePath = join(__dirname, '..', 'documents', `fileName.${fileType}`);
+  const filePath = join(__dirname, '..', 'test-data', 'documents', `fileName.${fileType}`);
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
 }

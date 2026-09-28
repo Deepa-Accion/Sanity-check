@@ -97,7 +97,6 @@ test.describe("Sanity Suite", () => {
   });
 
 
-
   test("@sanity Upload document with Architecture Ontology", async ({ page }) => {
     await ensureProjectOpen(page);
     await uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, "txt");
@@ -106,11 +105,13 @@ test.describe("Sanity Suite", () => {
 
   test("@sanity Generate Architecture Ontology", async ({ page }) => {
     await ensureProjectOpen(page);
+    await downloadArtifactPlainMarkdown(page, projectId);
     
   });
 
   test("@sanity Generate Design ontology", async ({ page }) => {
     await ensureProjectOpen(page);
+
     
   });
 

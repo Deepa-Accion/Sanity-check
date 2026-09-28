@@ -417,16 +417,16 @@ export async function waitForOntologyStatus(page, entryName, { acceptedStatuses 
  *
  * Prerequisites: generate the ndjson.gz once with:
  *   uvx --from git+https://github.com/accionlabs/breezeai-cog breezeai-cog \
- *     repo-to-json-tree --capture-statements --repo <repo-path> --out documents/
+ *     repo-to-json-tree --capture-statements --repo <repo-path> --out test-data/repos/
  *
  * @param {import('@playwright/test').Page} page
  * @param {string} projectId
  * @param {string} ontologyName  Display name for the new ontology
- * @param {string} [fileName]    Filename inside the documents/ folder (default: sanity-check-repo.ndjson.gz)
+ * @param {string} [fileName]    Filename inside the test-data/repos/ folder (default: sanity-check-repo.ndjson.gz)
  */
 export async function uploadAndGenerateCodeOntology(page, projectId, ontologyName, fileName = 'sanity-check-repo.ndjson.gz') {
   const baseUrl = process.env.TARGET_URL || 'https://ai.accionbreeze.com/';
-  const filePath = fileURLToPath(new URL(`../documents/${fileName}`, import.meta.url));
+  const filePath = fileURLToPath(new URL(`../test-data/documents/${fileName}`, import.meta.url));
 
   console.log(`[codeOntology] Navigating to /code-ontology/${projectId}`);
   await page.goto(`${baseUrl}code-ontology/${projectId}`, { waitUntil: 'domcontentloaded' });
