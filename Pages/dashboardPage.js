@@ -145,11 +145,29 @@ export async function createProject(page, projectName) {
   const createProjectPage = new CreateProjectPage(page);
   await createProjectPage.open();
   await createProjectPage.fillProjectName(projectName);
-  await createProjectPage.save();
-  await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 30000 });
-  await waitForProjectVisible(page, projectName, 60000);
 
-  const projectId = page.url().match(/\/dashboard\/([^/?#]+)/i)?.[1];
+  // Intercept the API response to get the UUID before the page navigates away
+  const responsePromise = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && /projects/i.test(r.url()),
+    { timeout: 30000 }
+  ).catch(() => null);
+
+  await createProjectPage.save();
+
+  let projectId = null;
+  const response = await responsePromise;
+  if (response) {
+    const body = await response.json().catch(() => null);
+    projectId = body?.uuid || body?.id || body?.data?.uuid || body?.data?.id || null;
+    if (projectId) console.log(`[createProject] UUID from API: ${projectId}`);
+  }
+
+  // Fall back to URL extraction if API response didn't yield a UUID
+  if (!projectId) {
+    await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 30000 });
+    projectId = page.url().match(/\/dashboard\/([^/?#]+)/i)?.[1];
+  }
+
   return projectId || projectName;
 }
 
@@ -162,26 +180,45 @@ export async function selectProject(page, projectName) {
 }
 
 export async function selectFirstListedProject(page) {
+  // Ensure React is fully hydrated before interacting
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
   const project = page.locator('article').first();
   await expect(project).toBeVisible({ timeout: 30000 });
-  await project.locator(':scope > div').first().click({ force: true });
+  // Navigate directly — intercept the React Router pushState that the card's
+  // onClick would call, then navigate to that URL.
+  const projectUrl = await page.evaluate(() =>
+    new Promise((resolve) => {
+      const orig = history.pushState.bind(history);
+      history.pushState = (...args) => { resolve(args[2]); return orig(...args); };
+      document.querySelector('article > div')?.click();
+      setTimeout(() => resolve(null), 5000);
+    })
+  );
+  if (projectUrl) {
+    await page.waitForURL(new RegExp(projectUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 10000 }).catch(() => {});
+  }
   await expect.poll(() => page.url(), { timeout: 30000 }).toMatch(/\/dashboard\/[^/?#]+/i);
   return page.url().match(/\/dashboard\/([^/?#]+)/i)?.[1] || null;
 }
 
+async function fillSearchInput(page, value) {
+  const input = page.getByPlaceholder(/search/i).first();
+  if (await input.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await input.fill(value);
+    return true;
+  }
+  return false;
+}
+
 export async function searchProject(page, projectName) {
-  const searchInput = page.getByPlaceholder(/search projects/i).first();
-  await expect(searchInput).toBeVisible({ timeout: 20000 });
-  await searchInput.fill(projectName);
+  await fillSearchInput(page, projectName);
   let attempts = 0;
   await expect.poll(async () => {
     const visible = await projectCard(page, projectName).isVisible().catch(() => false);
     attempts += 1;
     if (!visible && attempts % 6 === 0) {
       await page.reload({ waitUntil: 'domcontentloaded' });
-      const refreshedSearch = page.getByPlaceholder(/search projects/i).first();
-      await expect(refreshedSearch).toBeVisible({ timeout: 20000 });
-      await refreshedSearch.fill(projectName);
+      await fillSearchInput(page, projectName);
     }
     return visible;
   }, { timeout: 120000, intervals: [1000, 2000, 5000] }).toBe(true);

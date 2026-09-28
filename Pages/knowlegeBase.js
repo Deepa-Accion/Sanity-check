@@ -47,7 +47,7 @@ export async function uploadDocumentInKnowledgeBase(page, fileType = 'pdf') {
   // Set file input
   const fileInput = page.locator('input[type="file"]').first();
   if (await fileInput.count().catch(() => 0)) {
-    const filePath = join(__dirname, '..', 'documents', `fileName.${fileType}`);
+    const filePath = join(__dirname, '..', 'test-data', 'documents', `fileName.${fileType}`);
     await fileInput.setInputFiles(filePath);
   }
   
@@ -68,104 +68,25 @@ export async function uploadDocumentInKnowledgeBase(page, fileType = 'pdf') {
   }
 }
 
-export async function uploadFirstDocumentInKnowledgeBase (page, fileType = 'pdf') {
-  console.log('[uploadFirstDocumentInKnowledgeBase] Starting document upload process');
-  await selectKnowleedgeBaseTab(page);
-  await page.waitForTimeout(3000);
-  
-  // Check if we're in the Setup Wizard
-  const startWizardBtn = page.locator('button').filter({ hasText: /Start Setup Wizard/i }).first();
-  const wizardVisible = await startWizardBtn.isVisible().catch(() => false);
-  if (wizardVisible) {
-    console.log('[uploadFirstDocumentInKnowledgeBase] Setup Wizard detected - clicking Start Setup Wizard');
-    await startWizardBtn.click();
-    await page.waitForTimeout(3000);
-  }
-  
-  // Click Initialize Knowledge button or look for Upload Documents option
-  let initBtn = page.getByRole('button', { name: /initialize\s+knowledge/i }).first();
-  let found = await initBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  if (!found) {
-    initBtn = page.locator('button').filter({ hasText: /Initialize\s+Knowledge/i }).first();
-    found = await initBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (!found) {
-    // Try to find Upload Documents button in wizard
-    initBtn = page.locator('button, div').filter({ hasText: /Upload Documents/i }).first();
-    found = await initBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadFirstDocumentInKnowledgeBase] Clicking Initialize/Upload button');
-    await initBtn.click();
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBase] Initialize/Upload button not found!');
-  }
-  await page.waitForTimeout(8000);
-  
-  // Set file input - wait for it to appear
-  const fileInput = page.locator('input[type="file"]').first();
-  let inputFound = await fileInput.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!inputFound) {
-    inputFound = await fileInput.count().catch(() => 0) > 0;
-  }
-  if (inputFound) {
-    const filePath = `${__dirname}/../documents/fileName.${fileType}`;
-    console.log('[uploadFirstDocumentInKnowledgeBase] Setting file input:', filePath);
-    try {
-      await fileInput.setInputFiles(filePath);
-      console.log('[uploadFirstDocumentInKnowledgeBase] File input set successfully');
-    } catch (e) {
-      console.error('[uploadFirstDocumentInKnowledgeBase] Error setting file input:', e.message);
-    }
-    // Wait for file to be processed
-    await page.waitForTimeout(3000);
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBase] File input not found!');
-  }
+export async function uploadFirstpdfDocument(page) {
+  console.log('[uploadFirstDocumentInKnowledgeBase] Navigating to functional ontology page');
+  await _navigateToOntologyPage(page, 'functional');
+  const filePath = `${__dirname}/../test-data/documents/ice_cream_ecommerce.pdf`;
+  await _uploadFileOnOntologyPage(page, filePath);
+  console.log('[uploadFirstDocumentInKnowledgeBase] Upload complete');
+}
 
-  await page.waitForTimeout(2000);
-  
-  // Select Functional Ontology - try multiple selectors
-  let ontologyDiv = page.locator('div').filter({ hasText: /^Functional\s+Ontology$/i }).nth(1);
-  let found2 = await ontologyDiv.isVisible({ timeout: 8000 }).catch(() => false);
-  if (!found2) {
-    ontologyDiv = page.locator('div').filter({ hasText: /Functional\s+Ontology/i }).first();
-    found2 = await ontologyDiv.isVisible({ timeout: 8000 }).catch(() => false);
-  }
-  if (!found2) {
-    // Try radio button or label for Functional ontology
-    ontologyDiv = page.locator('label, span').filter({ hasText: /Functional/i }).first();
-    found2 = await ontologyDiv.isVisible({ timeout: 5000 }).catch(() => false);
-  }
-  if (found2) {
-    console.log('[uploadFirstDocumentInKnowledgeBase] Clicking Functional Ontology');
-    await ontologyDiv.click();
-    await page.waitForTimeout(1000);
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBase] Functional Ontology not found - continuing anyway');
-  }
-  
-  // Click Submit/Start Analysis button
-  let submitBtn = page.locator('button').filter({ hasText: /Submit|Start\s+Analysis|Upload|Confirm/i }).first();
-  let found3 = await submitBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  
-  if (found3) {
-    const buttonText = await submitBtn.textContent();
-    console.log('[uploadFirstDocumentInKnowledgeBase] Found submit button:', buttonText);
-    try {
-      await submitBtn.click();
-      console.log('[uploadFirstDocumentInKnowledgeBase] Submit button clicked');
-      // Wait for upload to process
-      await page.waitForTimeout(8000);
-    } catch (e) {
-      console.error('[uploadFirstDocumentInKnowledgeBase] Error clicking submit:', e.message);
-    }
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBase] Submit button not found!');
-  }
-  
-  console.log('[uploadFirstDocumentInKnowledgeBase] Document upload process completed');
-  
+export async function netButtonClickOnObardingPage(page) {
+  const nextBtn = page.getByRole('button', { name: /Next/i }).first();
+}
+
+export async function uploadFirstDocumentInKnowledgeBase(page, fileType = 'pdf') {
+  console.log('[uploadFirstDocumentInKnowledgeBase] Navigating to functional ontology page');
+  await _navigateToOntologyPage(page, 'functional');
+  const filePath = `${__dirname}/../test-data/documents/fileName.${fileType}`;
+  console.log('[uploadFirstDocumentInKnowledgeBase] Uploading:', filePath);
+  await _uploadFileOnOntologyPage(page, filePath);
+  console.log('[uploadFirstDocumentInKnowledgeBase] Upload complete');
 }
 
 export async function uploadFirstDocumentForProject(page, fileType = 'pdf') {
@@ -182,7 +103,7 @@ export async function ensureOnboardingPage(page, projectId) {
   await page.waitForLoadState('networkidle');
 }
 
-export async function generateFunctionalOntology(page, projectId) {
+export async function generateFunctionalOntology(page) {
   console.log('[generateFunctionalOntology] Navigating to functional ontology page');
   await _navigateToOntologyPage(page, 'functional');
   await page.waitForTimeout(2000);
@@ -199,191 +120,125 @@ export async function generateFunctionalOntology(page, projectId) {
   console.log('[generateFunctionalOntology] Functional ontology confirmed as Generated');
 }
 
-export async function uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, fileType = 'pdf') {
-  await selectKnowleedgeBaseTab(page);
-  await page.waitForTimeout(3000);
-  
-  // Click Add Document button
-  let addDocBtn = page.getByRole('button', { name: /Add\s+Document/i }).first();
-  let found = await addDocBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  if (!found) {
-    addDocBtn = page.locator('button').filter({ hasText: /Add\s+Document/i }).first();
-    found = await addDocBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Clicking Add Document');
-    await addDocBtn.click();
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Add Document button not found!');
-  }
-  await page.waitForTimeout(8000);
-  
-  // Set file input
-  const fileInput = page.locator('input[type="file"]').first();
-  let inputFound = await fileInput.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!inputFound) {
-    inputFound = await fileInput.count().catch(() => 0) > 0;
-  }
-  if (inputFound) {
-    const filePath = `${__dirname}/../documents/fileName.${fileType}`;
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Setting file input:', filePath);
-    await fileInput.setInputFiles(filePath);
-    await page.waitForTimeout(2000);
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] File input not found!');
-  }
-
-  await page.waitForTimeout(3000);
-  
-  // Select Architecture Ontology
-  let ontologyDiv = page.locator('div').filter({ hasText: /^Architecture\s+Ontology$/i }).nth(1);
-  found = await ontologyDiv.isVisible({ timeout: 8000 }).catch(() => false);
-  if (!found) {
-    ontologyDiv = page.locator('div').filter({ hasText: /Architecture\s+Ontology/i }).first();
-    found = await ontologyDiv.isVisible({ timeout: 8000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Clicking Architecture Ontology');
-    await ontologyDiv.click();
-    await page.waitForTimeout(1500);
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Architecture Ontology not found!');
-  }
-  
-  // Click Start Analysis
-  let analysisBtn = page.getByRole('button', { name: /Start\s+Analysis/i });
-  found = await analysisBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  if (!found) {
-    analysisBtn = page.locator('button').filter({ hasText: /Start\s+Analysis/i }).first();
-    found = await analysisBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Clicking Start Analysis');
-    await analysisBtn.click();
-    await page.waitForTimeout(5000);
-  } else {
-    console.log('[uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology] Start Analysis button not found!');
-  }
-  
+export async function uploadFirstDocumentInKnowledgeBasewithartictecturemodelingOntology(page, fileType = 'txt') {
+  console.log('[uploadArchitecture] Navigating to architecture ontology page');
+  await _navigateToOntologyPage(page, 'architecture');
+  const filePath = `${__dirname}/../test-data/documents/architecture.txt`;
+  console.log('[uploadArchitecture] Uploading:', filePath);
+  await _uploadFileOnOntologyPage(page, filePath);
+  console.log('[uploadArchitecture] Upload complete');
 }
 
 export async function uploadDocumentwithDesignOntology(page, fileType = 'pdf') {
-  await selectKnowleedgeBaseTab(page);
-  await page.waitForTimeout(3000);
-  
-  // Click Add Document button
-  let addDocBtn = page.getByRole('button', { name: /Add\s+Document/i }).first();
-  let found = await addDocBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  if (!found) {
-    addDocBtn = page.locator('button').filter({ hasText: /Add\s+Document/i }).first();
-    found = await addDocBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadDocumentwithDesignOntology] Clicking Add Document');
-    await addDocBtn.click();
-  } else {
-    console.log('[uploadDocumentwithDesignOntology] Add Document button not found!');
-  }
-  await page.waitForTimeout(8000);
-  
-  // Set file input
-  const fileInput = page.locator('input[type="file"]').first();
-  let inputFound = await fileInput.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!inputFound) {
-    inputFound = await fileInput.count().catch(() => 0) > 0;
-  }
-  if (inputFound) {
-    const filePath = `${__dirname}/../documents/fileName.${fileType}`;
-    console.log('[uploadDocumentwithDesignOntology] Setting file input:', filePath);
-    await fileInput.setInputFiles(filePath);
-    await page.waitForTimeout(2000);
-  } else {
-    console.log('[uploadDocumentwithDesignOntology] File input not found!');
-  }
-
-  await page.waitForTimeout(3000);
-  
-  // Select Design Ontology
-  let ontologyDiv = page.locator('div').filter({ hasText: /^Design\s+Ontology$/i }).nth(1);
-  found = await ontologyDiv.isVisible({ timeout: 8000 }).catch(() => false);
-  if (!found) {
-    ontologyDiv = page.locator('div').filter({ hasText: /Design\s+Ontology/i }).first();
-    found = await ontologyDiv.isVisible({ timeout: 8000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadDocumentwithDesignOntology] Clicking Design Ontology');
-    await ontologyDiv.click();
-    await page.waitForTimeout(1500);
-  } else {
-    console.log('[uploadDocumentwithDesignOntology] Design Ontology not found!');
-  }
-  
-  // Click Start Analysis
-  let analysisBtn = page.getByRole('button', { name: /Start\s+Analysis/i });
-  found = await analysisBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  if (!found) {
-    analysisBtn = page.locator('button').filter({ hasText: /Start\s+Analysis/i }).first();
-    found = await analysisBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  }
-  if (found) {
-    console.log('[uploadDocumentwithDesignOntology] Clicking Start Analysis');
-    await analysisBtn.click();
-    await page.waitForTimeout(5000);
-  } else {
-    console.log('[uploadDocumentwithDesignOntology] Start Analysis button not found!');
-  }
-  
+  console.log('[uploadDesign] Navigating to design ontology page');
+  await _navigateToOntologyPage(page, 'design');
+  const filePath = `${__dirname}/../test-data/documents/fileName.${fileType}`;
+  console.log('[uploadDesign] Uploading:', filePath);
+  await _uploadFileOnOntologyPage(page, filePath);
+  console.log('[uploadDesign] Upload complete');
 }
 
 
-export async function selectKnowleedgeBaseTab(page) {
-  // Heal any SPA chunk-reload error before attempting to find tabs
-  await checkAndRecoverFromAppError(page);
+// ─── Internal helpers ────────────────────────────────────────────────────────
 
-  let kbBtn = page.locator("li.relative > button[aria-label='Knowledge Base']");
-  let found = await kbBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  
-  if (!found) {
-    kbBtn = page.locator('button').filter({ hasText: /Knowledge\\s+Base/i }).first();
-    found = await kbBtn.isVisible({ timeout: 10000 }).catch(() => false);
+function _extractProjectUuid(page) {
+  const m = page.url().match(/(?:dashboard|ontology)\/([0-9a-f-]{30,})/i);
+  return m?.[1] || null;
+}
+
+async function _navigateToOntologyPage(page, type) {
+  await checkAndRecoverFromAppError(page);
+  const uuid = _extractProjectUuid(page);
+  if (!uuid) throw new Error(`[navigateToOntologyPage] Cannot find project UUID in URL: ${page.url()}`);
+  const base = (process.env.TARGET_URL || 'https://ai.accionbreeze.com/').replace(/\/$/, '');
+  const target = `${base}/ontology/${uuid}/${type}`;
+  if (!page.url().includes(`/ontology/${uuid}/${type}`)) {
+    await page.goto(target, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
   }
-  
-  if (found) {
-    await kbBtn.click();
+}
+
+async function _uploadFileOnOntologyPage(page, filePath) {
+  const uploadBtn = page.getByRole('button', { name: /Upload Documents/i }).first();
+  await uploadBtn.waitFor({ state: 'visible', timeout: 15000 });
+  await uploadBtn.click();
+
+  // The modal is a div[role="dialog"], not a <dialog> tag — must use getByRole
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor({ state: 'visible', timeout: 20000 });
+
+  // Use file-chooser event — direct setInputFiles on the hidden input won't
+  // trigger the React state update so "Upload All" never appears
+  const chooserPromise = page.waitForEvent('filechooser', { timeout: 15000 });
+  const dragZone = dialog.getByText(/Drag.*drop files here/i).first();
+  if (await dragZone.isVisible().catch(() => false)) {
+    await dragZone.click();
+  } else {
+    await dialog.click();
   }
-  await page.waitForTimeout(2000);
+  const chooser = await chooserPromise;
+  await chooser.setFiles(filePath);
+
+  // After file is selected the "Upload All" button appears — click it
+  const uploadAllBtn = page.getByRole('button', { name: /Upload All/i }).first();
+  await uploadAllBtn.waitFor({ state: 'visible', timeout: 15000 });
+  await uploadAllBtn.click();
+  await page.waitForTimeout(3000);
+}
+
+// ─── Exported tab helper ──────────────────────────────────────────────────────
+
+export async function selectKnowleedgeBaseTab(page, type = 'functional') {
+  await _navigateToOntologyPage(page, type);
 }
 export async function generateFunctionalMetric(page) {
-  console.log('[generateFunctionalMetric] Starting functional metrics generation');
-  
-  // First, ensure we're on the Knowledge Base tab
-  await selectKnowleedgeBaseTab(page);
+  console.log('[generateFunctionalMetric] Navigating to functional ontology page');
+  await _navigateToOntologyPage(page, 'functional');
   await page.waitForTimeout(2000);
-  
-  // Look for Generate Metrics button
-  let genMetricBtn = page.locator('button').filter({ hasText: /Generate\s+Metrics|Generate\s+Functional/i }).first();
-  let found = await genMetricBtn.isVisible({ timeout: 10000 }).catch(() => false);
-  
-  if (!found) {
-    // Look for button with icon (metrics button might just have an icon)
-    genMetricBtn = page.locator('button').filter({ hasText: /^$/ }).nth(5);
-    found = await genMetricBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  }
-  
-  if (found) {
-    console.log('[generateFunctionalMetric] Clicking Generate Metrics button');
-    try {
-      await genMetricBtn.click();
-      console.log('[generateFunctionalMetric] Generate Metrics button clicked - waiting for processing (2-3 minutes)');
-      // Wait for metrics generation - this can take 2-3 minutes
-      await page.waitForTimeout(180000); // 3 minutes
-      console.log('[generateFunctionalMetric] Metrics generation completed');
-    } catch (e) {
-      console.error('[generateFunctionalMetric] Error:', e.message);
+
+  // Wait for at least one document to show "Generated" status (up to 3 min)
+  console.log('[generateFunctionalMetric] Waiting for document to reach Generated status...');
+  await expect.poll(async () => {
+    const generated = await page.locator('p:has-text("Generated")').first().isVisible().catch(() => false);
+    if (!generated) {
+      // Click Refresh if available to check latest status
+      const refreshBtn = page.locator('button[aria-label*="refresh" i], button:has-text("Refresh")').first();
+      await refreshBtn.click().catch(() => {});
+      await page.waitForTimeout(2000);
     }
-  } else {
-    console.log('[generateFunctionalMetric] Generate Metrics button not found!');
+    return generated;
+  }, { timeout: 180000, intervals: [5000, 10000, 15000] }).toBe(true);
+  console.log('[generateFunctionalMetric] Functional metrics confirmed as Generated');
+}
+
+export async function generateArchitectureOntology(page) {
+  console.log('[generateArchitectureOntology] Navigating to architecture ontology page');
+  await _navigateToOntologyPage(page, 'architecture');
+  await page.waitForTimeout(2000);
+
+  // Click any "Generate" buttons for documents not yet generated
+  const generateBtns = page.getByRole('button', { name: /^Generate$/i });
+  const count = await generateBtns.count();
+  if (count > 0) {
+    console.log(`[generateArchitectureOntology] Clicking ${count} Generate button(s)`);
+    for (let i = 0; i < count; i++) {
+      await generateBtns.nth(i).click().catch(() => {});
+      await page.waitForTimeout(500);
+    }
   }
+
+  // Wait for at least one document to show "Generated" status (up to 3 min)
+  console.log('[generateArchitectureOntology] Waiting for document to reach Generated status...');
+  await expect.poll(async () => {
+    const generated = await page.locator('p:has-text("Generated")').first().isVisible().catch(() => false);
+    if (!generated) {
+      const refreshBtn = page.locator('button:has-text("Refresh")').first();
+      await refreshBtn.click().catch(() => {});
+      await page.waitForTimeout(2000);
+    }
+    return generated;
+  }, { timeout: 180000, intervals: [5000, 10000, 15000] }).toBe(true);
+  console.log('[generateArchitectureOntology] Architecture ontology confirmed as Generated');
 }
 
 export async function connectRepoInKnowledgeBase(page, gitURL) {
@@ -394,6 +249,6 @@ export async function connectRepoInKnowledgeBase(page, gitURL) {
 
 export async function uploadDocumentInAIChat(page, fileType = 'pdf', projectId) {
   await page.goto(`${process.env.TARGET_URL || "https://ai.accionbreeze.com/"}chat/requirement_agent/${projectId}`);
-  const filePath = join(__dirname, '..', 'documents', `fileName.${fileType}`);
+  const filePath = join(__dirname, '..', 'test-data', 'documents', `fileName.${fileType}`);
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
 }
