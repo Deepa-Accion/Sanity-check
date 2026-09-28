@@ -23,6 +23,10 @@ tmp-*.mjs
 auth.json
 session-auth.json
 
+# Local credentials — never commit
+.env
+.env.local
+
 # Breeze config (contains API key)
 .breeze.json
 
