@@ -202,25 +202,47 @@ export async function selectFirstListedProject(page) {
 }
 
 async function fillSearchInput(page, value) {
-  const input = page.getByPlaceholder(/search/i).first();
-  if (await input.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await input.fill(value);
-    return true;
+  const input = page.getByPlaceholder(/search projects/i).first();
+  // The listing is client-rendered. Two ordering problems were observed:
+  //  1. The search box does not exist the instant `domcontentloaded` resolves,
+  //     so an instantaneous isVisible() returned false and nothing was filled.
+  //  2. Even once the box exists, the accessible-projects fetch may still be
+  //     in flight. Typing then filters an empty list and the UI latches onto
+  //     "No projects found." even once the real projects arrive.
+  // Wait for the listing to settle (cards OR an explicit empty state) before
+  // applying the filter.
+  try {
+    await expect(input).toBeVisible({ timeout: 20000 });
+    await expect
+      .poll(
+        async () =>
+          (await page.locator("article").count()) > 0 ||
+          (await page.getByText("No projects found").count()) > 0,
+        { timeout: 20000, intervals: [500, 1000, 2000] }
+      )
+      .toBe(true);
+  } catch {
+    return false;
   }
-  return false;
+  await input.fill(value);
+  return true;
 }
 
 export async function searchProject(page, projectName) {
   await fillSearchInput(page, projectName);
   let attempts = 0;
   await expect.poll(async () => {
-    const visible = await projectCard(page, projectName).isVisible().catch(() => false);
-    attempts += 1;
-    if (!visible && attempts % 6 === 0) {
+    // The listing is fetched client-side; until it arrives there is nothing to
+    // filter, so the card is legitimately absent. Reload periodically to force
+    // the listing request again, then re-apply the search.
+    if (attempts > 0 && attempts % 6 === 0) {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await fillSearchInput(page, projectName);
     }
-    return visible;
+    // Re-evaluate AFTER any reload/refill. Returning the pre-reload value made
+    // the reload useless and let the poll spin until timeout.
+    attempts += 1;
+    return projectCard(page, projectName).isVisible().catch(() => false);
   }, { timeout: 120000, intervals: [1000, 2000, 5000] }).toBe(true);
 }
 
