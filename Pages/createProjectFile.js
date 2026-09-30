@@ -90,25 +90,54 @@ export class CreateProjectPage {
     throw new Error(`Unsupported Create Project dismiss method: ${method}`);
   }
 
+  /**
+   * Dismiss the Create Project form via its cancel/close control.
+   *
+   * The naive version of this helper returned `true` as soon as the name input
+   * was not visible. That is a transient-state false positive: on the very
+   * first poll the dialog may not have rendered yet, so "input not visible"
+   * would satisfy the check before any dismissal was attempted at all.
+   *
+   * Instead this waits for the form to be observed OPEN, performs the dismissal,
+   * and then requires the CLOSED state to be observed consistently across
+   * consecutive polls before reporting success.
+   */
   async cancelOrClose() {
-    await expect.poll(async () => {
-      if (!(await this.projectNameInput.isVisible().catch(() => false))) {
-        return true;
-      }
+    // Phase 1 — the form must actually be present before we try to dismiss it.
+    await expect(this.projectNameInput).toBeVisible({ timeout: 20000 });
 
-      const cancelButton = this.page.getByRole("button", { name: /^(cancel|close|back)$/i }).first();
-      if (!(await cancelButton.isVisible().catch(() => false))) {
-        return false;
-      }
+    // Phase 2 — attempt dismissal once, then wait on the form's actual state.
+    // Do not require the button to remain visible while the dialog transitions
+    // closed; the button can disappear before the dialog/input do.
+    const cancelButton = this.page.getByRole("button", { name: /^(cancel|close|back)$/i }).first();
+    await expect(cancelButton).toBeVisible({ timeout: 10000 });
+    await cancelButton.click({ force: true, timeout: 3000 }).catch(() => {});
 
-      try {
-        await cancelButton.click({ force: true, timeout: 3000 });
-        await expect(this.projectNameInput).not.toBeVisible({ timeout: 3000 });
-        return true;
-      } catch {
-        return false;
-      }
-    }, { timeout: 20000, intervals: [250, 500, 1000, 2000] }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const dialogOpen = await this.dialog.isVisible().catch(() => false);
+          const formOpen = await this.projectNameInput.isVisible().catch(() => false);
+          return !dialogOpen && !formOpen;
+        },
+        { timeout: 20000, intervals: [250, 500, 1000, 2000] }
+      )
+      .toBe(true);
+
+    // Phase 3 — confirm the closed state is stable, not a mid-animation frame.
+    let consecutiveClosed = 0;
+    await expect
+      .poll(
+        async () => {
+          const dialogOpen = await this.dialog.isVisible().catch(() => false);
+          const formOpen = await this.projectNameInput.isVisible().catch(() => false);
+          const closed = !dialogOpen && !formOpen;
+          consecutiveClosed = closed ? consecutiveClosed + 1 : 0;
+          return consecutiveClosed >= 2;
+        },
+        { timeout: 10000, intervals: [250, 500, 1000] }
+      )
+      .toBe(true);
   }
 
   async formIsVisible() {

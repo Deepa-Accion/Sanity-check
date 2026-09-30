@@ -21,7 +21,7 @@ export async function waitForProjectHidden(page, projectName, timeout = 20000) {
 }
 
 export async function clearProjectSearch(page) {
-  const searchInput = page.getByRole('textbox', { name: /search projects/i }).first();
+  const searchInput = page.getByPlaceholder(/search projects/i).first();
   await expect(searchInput).toBeVisible({ timeout: 20000 });
   await searchInput.fill('');
   await expect(searchInput).toHaveValue('');
@@ -40,39 +40,72 @@ export async function getProjectListSummaryDetails(page) {
     : { first: 0, last: 0, total: 0, text };
 }
 
-export async function getProjectAuthor(page, projectName) {
-  const card = projectCard(page, projectName);
-  await expect(card).toBeVisible({ timeout: 20000 });
-  const authorLabel = card.getByText(/^author\s*:?$/i).first();
-  if (await authorLabel.count()) {
-    const authorContainer = authorLabel.locator('..');
-    const containerLines = (await authorContainer.innerText())
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const inlineAuthor = containerLines.join(' ').match(/^author\s*:\s*(.+)$/i);
-    if (inlineAuthor?.[1]) {
-      return inlineAuthor[1].trim();
-    }
-    const labelIndex = containerLines.findIndex((line) => /^author\s*:?$/i.test(line));
-    if (labelIndex >= 0 && containerLines[labelIndex + 1]) {
-      return containerLines[labelIndex + 1];
-    }
-  }
-
-  const lines = (await card.innerText())
+/**
+ * Read the Author from a project card's inner text.
+ *
+ * The Author field renders in several shapes:
+ *   inline  - "Author: jane.doe"
+ *   stacked - "Author" on one line and "jane.doe" on the next
+ *   nested  - the "Author" label sits several levels below the element that
+ *             actually contains the username
+ * so the value is located by scanning progressively wider ancestor scopes
+ * rather than assuming a fixed DOM depth.
+ */
+function extractAuthorFromText(text) {
+  const lines = text
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const inlineAuthor = lines.find((line) => /^author\s*:\s*\S/i.test(line))
-    ?.replace(/^author\s*:\s*/i, '').trim();
-  const authorIndex = lines.findIndex((line) => /^author\s*:?$/i.test(line));
-  const username = inlineAuthor || (authorIndex >= 0 ? lines[authorIndex + 1] : '');
 
-  if (!username) {
+  // Inline form wins when present.
+  const inline = lines.find((line) => /^author\s*:\s*\S/i.test(line));
+  if (inline) {
+    const value = inline.replace(/^author\s*:\s*/i, '').trim();
+    if (value) return value;
+  }
+
+  // Stacked form: the value is the next non-empty line after the label.
+  const labelIndex = lines.findIndex((line) => /^author\s*:?$/i.test(line));
+  if (labelIndex >= 0 && lines[labelIndex + 1]) {
+    return lines[labelIndex + 1];
+  }
+
+  // The label may be inline with other text ("Author jane.doe", "Created ... Author").
+  for (const line of lines) {
+    const match = line.match(/\bauthor\b\s*[:\s]\s*([^\s].*)$/i);
+    if (match?.[1]) return match[1].trim();
+  }
+
+  return '';
+}
+
+export async function getProjectAuthor(page, projectName) {
+  const card = projectCard(page, projectName);
+  await expect(card).toBeVisible({ timeout: 20000 });
+
+  const authorLabel = card.getByText(/^author\s*:?$/i).first();
+
+  if (await authorLabel.count()) {
+    // Walk up from the label: each ancestor is a wider scope that may contain
+    // the username next to (or below) the label. Starting at the label's own
+    // parent handles the common case; deeper ancestors cover nested markup.
+    let scope = authorLabel;
+    for (let depth = 0; depth < 5; depth += 1) {
+      const parent = scope.locator('xpath=..');
+      if (!(await parent.count().catch(() => 0))) break;
+      const author = extractAuthorFromText(await parent.innerText().catch(() => ''));
+      if (author) return author;
+      scope = parent;
+    }
+  }
+
+  // Fall back to the whole card.
+  const author = extractAuthorFromText(await card.innerText());
+
+  if (!author) {
     throw new Error(`Could not read the Author from project card: ${projectName}`);
   }
-  return username;
+  return author;
 }
 
 export async function openAuthorFilter(page) {
@@ -85,11 +118,24 @@ export async function openAuthorFilter(page) {
 export async function selectAuthorFilter(page, authorName) {
   const menu = page.getByRole('menu').last();
   await expect(menu).toBeVisible({ timeout: 10000 });
-  const option = menu.getByRole('menuitemcheckbox', { name: authorName, exact: true })
-    .or(menu.getByRole('option', { name: authorName, exact: true }))
-    .or(menu.locator('label, button, [role="menuitem"], [role="menuitemcheckbox"], [role="option"]')
-      .filter({ hasText: new RegExp(`^${authorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }))
-    .last();
+
+  // The Author option is NOT reliably a `menuitemcheckbox`: the live app
+  // renders it as a `button "breezeai test"` inside `menu "Author"`, so a
+  // checkbox-only locator matches nothing. Keep the explicit role chain the app
+  // actually produces, but resolve ambiguity with `.first()` (deterministic
+  // first match) instead of the original `.last()`.
+  const escapedName = authorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const exactName = new RegExp(`^${escapedName}$`, 'i');
+
+  const option = menu
+    .getByRole('menuitemcheckbox', { name: exactName })
+    .or(menu.getByRole('option', { name: exactName }))
+    .or(menu.getByRole('menuitem', { name: exactName }))
+    .or(menu.getByRole('button', { name: exactName }))
+    .or(menu.locator('[role="menuitemcheckbox"], [role="option"], [role="menuitem"], label')
+      .filter({ hasText: exactName }))
+    .first();
+
   await expect(option).toBeVisible({ timeout: 10000 });
   await option.click();
   await page.keyboard.press('Escape');
@@ -121,8 +167,20 @@ export async function openTagsFilter(page, tagName) {
   await trigger.click();
 
   const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const dropdown = page.locator('[role="menu"], [role="listbox"]').last();
-  const option = page.locator('[role="menuitem"], [role="option"], button, [role="listbox"]').filter({ hasText: new RegExp(escapedTagName, 'i') }).first();
+  // Scope the option lookup to the overlay that the trigger actually opened.
+  // A page-wide locator could otherwise match a "button"/"[role=listbox]"
+  // element outside the overlay, which is what made this selection flaky.
+  const dropdown = page.locator('[role="menu"]:visible, [role="listbox"]:visible').last();
+  await expect(dropdown).toBeVisible({ timeout: 10000 });
+
+  const exactName = new RegExp(`^${escapedTagName}$`, 'i');
+  const option = dropdown
+    .getByRole('menuitemcheckbox', { name: exactName })
+    .or(dropdown.getByRole('option', { name: exactName }))
+    .or(dropdown.getByRole('menuitem', { name: exactName }))
+    .or(dropdown.locator('[role="menuitem"], [role="menuitemcheckbox"], [role="option"], label')
+      .filter({ hasText: exactName }))
+    .first();
   await expect(option).toBeVisible({ timeout: 10000 });
   await option.click();
   await page.keyboard.press('Escape');
@@ -228,8 +286,21 @@ async function fillSearchInput(page, value) {
   return true;
 }
 
+/**
+ * Search the project listing for `projectName` and wait for its card.
+ *
+ * NOTE: an earlier revision added a per-poll "is the search box still holding
+ * this term?" guard. It was removed because it called `fillSearchInput()` from
+ * inside `expect.poll()`, and `fillSearchInput()` waits for the listing to
+ * settle before filling. Each value drift therefore re-entered that settle
+ * wait, so the poll could never converge and burned the full 120s budget
+ * (observed as a timeout in the "displays the author" regression run).
+ * Do not reintroduce a polling layer that re-enters the settle wait without
+ * runtime evidence that it converges.
+ */
 export async function searchProject(page, projectName) {
   await fillSearchInput(page, projectName);
+
   let attempts = 0;
   await expect.poll(async () => {
     // The listing is fetched client-side; until it arrives there is nothing to

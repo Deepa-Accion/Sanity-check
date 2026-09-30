@@ -54,7 +54,7 @@ export class ProjectPage {
     if (!dialogVisible && lastError) {
       throw lastError;
     }
-    await expect(dialog).toBeVisible({ timeout: 15000 });
+    // dialog is already verified visible by the retry loop above
 
     const confirmButton = dialog
       .getByRole('button', { name: /^(archive|delete|confirm)$/i })

@@ -4,21 +4,25 @@ import { ProjectPage } from "../../Pages/projectPage.js";
 import { uploadFirstpdfDocument, generateFunctionalOntology } from "../../Pages/knowlegeBase.js";
 import { CreateProjectPage } from "../../Pages/createProjectFile.js";
 
+// Counter to ensure uniqueness even when Date.now() returns the same value
+let uniqueCounter = 0;
+export const getUniqueSuffix = () => `${Date.now()}-${++uniqueCounter}`;
+
 export const uniqueProjectName = (suffix) =>
-  `Playwright-CreateProject-${suffix}-${Date.now()}`;
+  `Playwright-CreateProject-${suffix}-${getUniqueSuffix()}`;
 
 /**
  * Build a unique tag value. Tag length stays within the app's 50-character
  * limit so tags generated here never collide with the over-length scenario.
  */
-export const uniqueTag = (suffix) => `Tag-${suffix}-${Date.now()}`;
+export const uniqueTag = (suffix) => `Tag-${suffix}-${getUniqueSuffix()}`;
 
 /**
  * Build a project name of an exact total length (used for max-length cases).
  * The tail is padded deterministically so the result is always `length` chars.
  */
 export const fixedLengthProjectName = (suffix, length) => {
-  const base = `${suffix}${Date.now()}`;
+  const base = `${suffix}${getUniqueSuffix()}`;
   return base.length >= length ? base.slice(0, length) : base + "A".repeat(length - base.length);
 };
 
@@ -177,27 +181,63 @@ export async function expectNoControlsMatching(page, patterns) {
  * right after `goto` reports "absent" for a project that is still loading,
  * which would silently skip cleanup.
  *
- * Returns true/false only when the answer is confirmed. Throws when the listing
- * cannot be inspected at all, so an unusable page is never mistaken for
- * "project absent".
+ * The return value is deliberately THREE-STATE so that an unusable page is
+ * never mistaken for "project absent":
+ *   true  - the card was confirmed present
+ *   false - the listing rendered and the card was confirmed absent
+ *   null  - the listing never rendered, so presence is UNKNOWN
+ *
+ * A `null` result MUST be treated as a cleanup failure by callers; collapsing
+ * it to `false` would silently report a project as cleaned when it was never
+ * actually located.
  */
-async function isProjectInActiveListing(page, name, timeout = 20000) {
+async function inspectActiveListing(page, name, timeout = 20000) {
   const searchInput = page.getByPlaceholder(/search projects/i).first();
-  await expect(searchInput).toBeVisible({ timeout });
+  try {
+    await expect(searchInput).toBeVisible({ timeout });
+  } catch {
+    // The search box never appeared — the listing is unusable.
+    return null;
+  }
   await searchInput.fill(name);
 
-  let visible = false;
   try {
     await expect
-      .poll(async () => {
-        visible = await projectCard(page, name).isVisible().catch(() => false);
-        return visible;
-      }, { timeout, intervals: [500, 1000, 2000, 5000] })
+      .poll(async () => projectCard(page, name).isVisible().catch(() => false), {
+        timeout,
+        intervals: [500, 1000, 2000, 5000],
+        message: `Could not inspect the active listing while resolving project "${name}"`,
+      })
       .toBe(true);
+    return true;
+  } catch {
+    // The card never became visible. Distinguish "rendered but absent" from
+    // "listing never rendered at all" by requiring the listing to have settled
+    // (cards present, or an explicit empty state).
+    const listingRendered = await listingHasSettled(page, timeout);
+    return listingRendered ? false : null;
+  }
+}
+
+/**
+ * Whether the project listing has rendered far enough to make an absence
+ * conclusion meaningful: either cards are present, or the app has explicitly
+ * shown its "no projects" empty state.
+ */
+async function listingHasSettled(page, timeout = 20000) {
+  try {
+    await expect
+      .poll(
+        async () =>
+          (await page.locator("article").count()) > 0 ||
+          (await page.getByText(/no projects found/i).count()) > 0,
+        { timeout, intervals: [500, 1000, 2000] }
+      )
+      .toBe(true);
+    return true;
   } catch {
     return false;
   }
-  return visible;
 }
 
 /**
@@ -212,7 +252,14 @@ async function isProjectInActiveListing(page, name, timeout = 20000) {
  */
 async function verifyAbsentFromActiveListing(page, name) {
   await page.reload({ waitUntil: "domcontentloaded" });
-  return !(await isProjectInActiveListing(page, name));
+  const state = await inspectActiveListing(page, name);
+  if (state === null) {
+    throw new Error(
+      `Could not inspect the active listing to verify cleanup of "${name}" ` +
+        "(the project search box never became available)"
+    );
+  }
+  return state === false;
 }
 
 /**
@@ -229,6 +276,9 @@ async function verifyAbsentFromActiveListing(page, name) {
  *  - "cleaned"         : archive/delete action ran and the project is verified
  *                        absent from the active listing afterwards
  *  - "failed"          : the action or verification did not complete
+ *
+ * Cleanup failures THROW. They are never swallowed, so `afterEach` surfaces
+ * them and CI reports them instead of passing with a stranded project.
  */
 export async function cleanupCreatedProjects(page, createdProjectNames) {
   if (createdProjectNames.size === 0) return;
@@ -240,11 +290,22 @@ export async function cleanupCreatedProjects(page, createdProjectNames) {
     try {
       await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
 
-      const foundInActiveListing = await isProjectInActiveListing(page, name);
+      const listingState = await inspectActiveListing(page, name);
 
-      if (!foundInActiveListing) {
-        // Already out of the active listing. This is a recorded state, not a
-        // confirmed deletion, and it is not treated as proof of cleanup.
+      if (listingState === null) {
+        // UNKNOWN — the listing never rendered. Do NOT untrack the name and do
+        // NOT report it as absent; keep it tracked so a later run retries it.
+        failures.push({
+          name,
+          reason: "the active listing could not be inspected (unknown state, not confirmed absent)",
+        });
+        continue;
+      }
+
+      if (listingState === false) {
+        // Confirmed absent from the active listing. This is still not proof of a
+        // permanent delete (the app uses archive/soft-delete), so it is reported
+        // rather than treated as a silent success.
         alreadyAbsent.push(name);
         createdProjectNames.delete(name);
         continue;

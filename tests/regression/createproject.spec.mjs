@@ -23,6 +23,7 @@ import {
   uniqueTag,
   fixedLengthProjectName,
   getProjectCardName,
+  getUniqueSuffix,
   getFirstProjectCard,
   typeProjectSearch,
   captureScriptDialogs,
@@ -78,7 +79,7 @@ test.describe("Regression â€” Create Project", () => {
   });
 
   test("@regression @createproject @enduser supports special characters in a project name", async ({ page }) => {
-    const name = `Playwright & QA / ${Date.now()}`;
+    const name = uniqueProjectName("special-chars");
     const createProjectPage = await openCreateProject(page);
 
     await createProjectPage.fillProjectName(name);
@@ -212,8 +213,8 @@ test.describe("Regression â€” Create Project", () => {
 
   test("@regression @createproject @enduser creates a project with a description and tag visible on its card", async ({ page }) => {
     const projectName = uniqueProjectName("description-tag");
-    const description = `Description-${Date.now()}`;
-    const tag = `Tag-${Date.now()}`;
+    const description = uniqueTag("description");
+    const tag = uniqueTag("card");
     const createProjectPage = await openCreateProject(page);
 
     await createProjectPage.fillProjectName(projectName);
@@ -245,7 +246,7 @@ test.describe("Regression â€” Create Project", () => {
   });
 
   test("@regression @createproject @enduser renders HTML in a project name as text", async ({ page }) => {
-    const projectName = `<script>alert(${Date.now()})</script>`;
+    const projectName = `<script>alert('xss-${getUniqueSuffix()}')</script>`;
     const dialogs = await captureScriptDialogs(page);
     const createProjectPage = await openCreateProject(page);
 
@@ -274,7 +275,7 @@ test.describe("Regression â€” Create Project", () => {
 
   test("@regression @createproject @enduser @project-edit updates the description of an own project", async ({ page }) => {
     const projectName = uniqueProjectName("edit");
-    const description = `Updated-${Date.now()}`;
+    const description = uniqueTag("updated");
     await createProject(page, projectName);
     createdProjectNames.add(projectName);
 
@@ -379,7 +380,7 @@ test.describe("Regression â€” Create Project", () => {
       await expect(projectCard(page, projectName)).toBeVisible();
       await clearProjectSearch(page);
 
-      await typeProjectSearch(page, `NoMatch-${Date.now()}`);
+      await typeProjectSearch(page, `NoMatch-${getUniqueSuffix()}`);
       await expect.poll(() => projectCard(page, projectName).isVisible().catch(() => false)).toBe(false);
       await clearProjectSearch(page);
     });
