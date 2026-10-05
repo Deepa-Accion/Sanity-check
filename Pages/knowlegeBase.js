@@ -106,17 +106,36 @@ export async function ensureOnboardingPage(page, projectId) {
 export async function generateFunctionalOntology(page) {
   console.log('[generateFunctionalOntology] Navigating to functional ontology page');
   await _navigateToOntologyPage(page, 'functional');
-  await page.waitForTimeout(2000);
+  const generateButton = page.getByRole('button', { name: /^Generate$/i }).first();
+  const generatedStatus = page.getByText(/^Generated$/).first();
+
+  if (!(await generatedStatus.isVisible().catch(() => false))) {
+    await generateButton.waitFor({ state: 'visible', timeout: 15000 });
+    await expect(generateButton).toBeEnabled();
+    await generateButton.click({ timeout: 10000 });
+  }
 
   await expect.poll(async () => {
-    const generated = await page.locator('p:has-text("Generated")').first().isVisible().catch(() => false);
+    const generated = await generatedStatus.isVisible().catch(() => false);
     if (!generated) {
       const refreshBtn = page.locator('button[aria-label*="refresh" i], button:has-text("Refresh")').first();
       await refreshBtn.click().catch(() => {});
-      await page.waitForTimeout(2000);
     }
     return generated;
   }, { timeout: 180000, intervals: [5000, 10000, 15000] }).toBe(true);
+  
+  const reviewButton = page.getByRole('button', { name: /^Review$/i }).first();
+
+  if (await reviewButton.isVisible()) {
+    await reviewButton.click({ timeout: 5000 });
+  }
+  const approveButton = page.getByRole('button', {
+  name: 'Approve',
+  });
+  await expect(approveButton).toBeVisible();
+  await approveButton.click({ timeout: 5000 });
+  await expect(
+  page.getByText('Changes approved', { exact: true })).toBeVisible({ timeout: 5000 });
   console.log('[generateFunctionalOntology] Functional ontology confirmed as Generated');
 }
 
@@ -142,7 +161,7 @@ export async function uploadDocumentwithDesignOntology(page, fileType = 'pdf') {
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 function _extractProjectUuid(page) {
-  const m = page.url().match(/(?:dashboard|ontology)\/([0-9a-f-]{30,})/i);
+  const m = page.url().match(/(?:dashboard|ontology|onboarding)\/([0-9a-f-]{30,})/i);
   return m?.[1] || null;
 }
 
@@ -154,7 +173,8 @@ async function _navigateToOntologyPage(page, type) {
   const target = `${base}/ontology/${uuid}/${type}`;
   if (!page.url().includes(`/ontology/${uuid}/${type}`)) {
     await page.goto(target, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.getByText('Upload Documents', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+    console.log("[_navigateToOntologyPage] landed on functional ontology page");
   }
 }
 
@@ -183,7 +203,7 @@ async function _uploadFileOnOntologyPage(page, filePath) {
   const uploadAllBtn = page.getByRole('button', { name: /Upload All/i }).first();
   await uploadAllBtn.waitFor({ state: 'visible', timeout: 15000 });
   await uploadAllBtn.click();
-  await page.waitForTimeout(3000);
+  await page.getByText('uploaded successfully').waitFor({ state: 'visible', timeout: 10000 });
 }
 
 // ─── Exported tab helper ──────────────────────────────────────────────────────

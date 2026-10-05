@@ -7,12 +7,16 @@ function escapeRegExp(value) {
 }
 
 function artifactsUrlPattern(projectId) {
-  const uuidPattern = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  const projectIdentifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(projectId))
-    ? escapeRegExp(String(projectId))
-    : uuidPattern;
+  const baseUrl = new URL(TARGET_URL);
+  const basePath = baseUrl.pathname.replace(/\/$/, "");
+  const projectIdentifier = projectId == null
+    ? "[^/?#]+"
+    : escapeRegExp(encodeURIComponent(String(projectId)));
 
-  return new RegExp(`^${escapeRegExp(TARGET_URL)}knowledge/${projectIdentifier}(?:/)?$`, "i");
+  return new RegExp(
+    `^${escapeRegExp(`${baseUrl.origin}${basePath}`)}/knowledge/${projectIdentifier}/?(?:[?#].*)?$`,
+    "i",
+  );
 }
 
 function artifactBlobUrlPattern() {
@@ -34,7 +38,7 @@ async function openArtifactsMenu(page, projectId = null) {
 
 async function ensureArtifactsPage(page, projectId) {
   const { searchArtifactsButton } = artifactLocators(page);
-  const alreadyOnArtifactsPage = /\/knowledge\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:[/?#]|$)/i.test(page.url());
+  const alreadyOnArtifactsPage = artifactsUrlPattern(projectId).test(page.url());
 
   if (!alreadyOnArtifactsPage) {
       await openArtifactsMenu(page, projectId);
@@ -79,7 +83,7 @@ function artifactLocators(page) {
   }; 
 }
 
-export async function downloadArtifactPlainHtml(page, projectId) {
+export async function downloadArtifactPlainHtml(page, projectId, lastFoundRecordsCount = 0) {
   const {
     downloadDocumentationBtn,
     generateFunctionalDialog,
@@ -98,7 +102,25 @@ export async function downloadArtifactPlainHtml(page, projectId) {
   await expect(dwnldArtifactPlainHtmlBtn).toBeEnabled({ timeout: 5000 });
   await dwnldArtifactPlainHtmlBtn.click();
   await expect(artifactReady).toBeVisible({ timeout: 10000 });
-  return getArtifactRecordCount(page);
+  return waitForArtifactRecordCountIncrement(page, lastFoundRecordsCount);
+}
+
+async function waitForArtifactRecordCountIncrement(page, lastFoundRecordsCount = 0) {
+  const rows = page.locator('tbody tr');
+  let count = 0;
+
+  await expect
+    .poll(async () => {
+      count = await rows.count();
+      return count;
+    }, {
+      timeout: 10000,
+      message: `Expected artifact record count to increase beyond ${lastFoundRecordsCount}`,
+    })
+    .toBeGreaterThan(lastFoundRecordsCount);
+
+  console.log(`Artifact record count increased from ${lastFoundRecordsCount} to ${count}`);
+  return count;
 }
 
 export async function getArtifactRecordCount(page) {
@@ -128,7 +150,7 @@ export async function validateDownloadedPlainHtml(page, projectName) {
   const expectedTitle = `Functional Specification - ${projectName}`;
 
   await expect(viewButton).toBeVisible({ timeout: 10000 });
-  await viewButton.click();
+  await viewButton.first().click();
   await expect(page.getByText(expectedTitle, { exact: false }), `Custom Error: "${expectedTitle}" was not visible on the page within 10 seconds.`).toBeVisible({ timeout: 10000 });
   
   await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
@@ -158,14 +180,25 @@ export async function searchAndValidateRecord(page) {
   const nameCells = page.locator('tbody tr td').first();
   const recordText = await nameCells.innerText();
   if (!recordText) {
-    throw new Error('Record name cell is empty or not found');
+    throw new Error('no downloaded artifacts present on the page to perform search validation');
   }
   const expectedRecord = recordText.trim();
   console.log(`Searching for record: ${expectedRecord}`);
 
   // Search for the record
-  await searchArtifactsButton.fill(expectedRecord);
-  await page.waitForLoadState('networkidle');
+
+  await Promise.all([
+  page.waitForResponse(
+    response =>
+      response.url().includes('/search') &&
+      response.status() === 200,
+    { timeout: 10000 }
+  ),
+  searchArtifactsButton.fill(expectedRecord),
+  ]);
+
+  // Wait for results to render
+  await page.locator('tbody tr').first().waitFor({ state: 'visible' });
   // Get all filtered rows
   const filteredRows = page.locator('tbody tr');
   const displayedRecords = (await filteredRows.allTextContents()).map(record =>
@@ -173,11 +206,6 @@ export async function searchAndValidateRecord(page) {
   );
 
   const rowCount = displayedRecords.length;
-  // Fail if no records are found
-  if (rowCount === 0) {
-    throw new Error(
-    `Search validation failed. No records found for "${expectedRecord}".`);
-    }
   // Validate every displayed record matches the searched record
   for (const record of displayedRecords) {
     expect(record).toContain(expectedRecord);
@@ -195,7 +223,7 @@ export async function validateDownloadedPlainMarkdown(page, projectName) {
   const expectedTitle = `${projectName}`;
 
   await expect(viewButton).toBeVisible({ timeout: 10000 });
-  await viewButton.click();
+  await viewButton.first().click();
   await expect(page.getByText(/Functional Requirements Document/i).first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('[role="dialog"] h1')).toHaveText(expectedTitle);
   await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
@@ -204,7 +232,7 @@ export async function validateDownloadedPlainMarkdown(page, projectName) {
 }
 
 export async function validatePlainHtmlInNewWindow(page, projectName) {
-  const { viewButton, artifactPreviewDialog } = artifactLocators(page);
+  const { viewButton, artifactPreviewDialog, overlayCloseButton } = artifactLocators(page);
 
   const expectedTitle = `Functional Specification - ${projectName}`;
 
@@ -235,12 +263,17 @@ export async function validatePlainHtmlInNewWindow(page, projectName) {
     await newPage.close();
     await page.bringToFront();
   }
+
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
+  await overlayCloseButton.click();
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
 export async function validatePlainMarkdownInNewWindow(page, projectName) {
   const {
     viewButton,
     mrkdwnOpenButton,
+    overlayCloseButton
   } = artifactLocators(page);
 
   const expectedTitle = `${projectName}`;
@@ -263,12 +296,14 @@ export async function validatePlainMarkdownInNewWindow(page, projectName) {
 
   await newPage.close();
   await page.bringToFront();
+  await expect(overlayCloseButton).toBeEnabled({ timeout: 5000 });
+  await overlayCloseButton.click();
+  await expect(overlayCloseButton).not.toBeVisible({ timeout: 5000 });
 }
 
 export async function reviewArtifactsPage(page, projectId) {
   const { artifactsHeading, refreshArtifactsButton, artifactsTable, emptyArtifactsHeading, infoIconOnArtifactsPage } = artifactLocators(page);
-
-  await openArtifactsMenu(page, projectId);
+  await ensureArtifactsPage(page, projectId);
   await expect(artifactsHeading).toBeVisible();
   await expect(refreshArtifactsButton).toBeVisible();
   await expect(infoIconOnArtifactsPage).toBeVisible();
@@ -382,7 +417,7 @@ export async function validateCopyPlainMarkdownContent(page, projectName, projec
   await expect(overlayCloseButton).not.toBeVisible({ timeout: 10000 });
 }
 
-export async function downloadArtifactPlainMarkdown(page, projectId) {
+export async function downloadArtifactPlainMarkdown(page, projectId, lastFoundRecordsCount = 0) {
   const {
     downloadDocumentationBtn,
     generateFunctionalDialog,
@@ -400,4 +435,5 @@ export async function downloadArtifactPlainMarkdown(page, projectId) {
   await expect(dwnldArtifactPlainMarkdownBtn).toBeEnabled({ timeout: 10000 });
   await dwnldArtifactPlainMarkdownBtn.click();
   await expect(artifactReady).toBeVisible({ timeout: 10000 });
+  return waitForArtifactRecordCountIncrement(page, lastFoundRecordsCount);
 }
