@@ -118,6 +118,28 @@ export async function selectProjectTab(page, tabName) {
   await expect.poll(() => isProjectTabSelected(page, tabName), { timeout: 10000 }).toBe(true);
 }
 
+/**
+ * Switch to a project-listing tab, scoped so the DISABLED sidebar
+ * "Projects" navigation button can never be matched.
+ *
+ * `selectProjectTab` above uses a plain role/name lookup and is left untouched
+ * because existing tests depend on it. This variant exists because the Viewer
+ * listing renders that sidebar control with the same accessible name, so a
+ * broad lookup can select a disabled element and time out.
+ */
+export async function selectListingTab(page, tabName) {
+  const tab = new CreateProjectPage(page).projectTab(tabName);
+  await expect(tab).toBeVisible({ timeout: 20000 });
+
+  // `dispatchEvent` rather than `click`, matching the existing
+  // `selectProjectTab` above. The listing's tab strip sits underneath a
+  // `position: fixed` header, so a real click is intercepted by that header
+  // ("subtree intercepts pointer events"). The tab is a plain button, so the
+  // synthetic click produces identical behaviour without the hit-test.
+  await tab.dispatchEvent("click");
+  await expect(tab).toHaveClass(/bg-primary/i, { timeout: 10000 });
+}
+
 export async function isProfileMenuVisible(page) {
   return page.getByRole("menu").last().isVisible().catch(() => false);
 }
@@ -339,6 +361,247 @@ export async function cleanupCreatedProjects(page, createdProjectNames) {
         "These names remain tracked and will be retried by a later cleanup run."
     );
   }
+}
+
+// ============================================================
+// Role session helpers
+// ============================================================
+
+/**
+ * Open the project listing for whatever role session `page` carries, then
+ * perform a SINGLE hard refresh.
+ *
+ * The refresh is deliberate, not cosmetic: a role session injected via
+ * `addInitScript` only takes effect once the SPA has booted and consumed the
+ * OIDC entry, so asserting immediately after `goto` can observe the
+ * pre-hydration DOM. One reload guarantees the assertions run against a page
+ * that was rendered by the role's own session.
+ *
+ * Role-agnostic on purpose — any role fixture (default, admin, viewer) can use
+ * this, and the existing `beforeEach` blocks keep their own `goto` so their
+ * behaviour is unchanged.
+ */
+export async function openRoleListing(page, { refresh = true } = {}) {
+  // Role-gate state, set by the listener below.
+  //
+  // WHY THIS IS NECESSARY: the app renders role-gated chrome (for example the
+  // "Create Project" button) BEFORE the backend's role lookup completes, then
+  // removes it once the Viewer's `VIEWER` role is known. Sampling immediately
+  // after load can therefore observe a control a Viewer must never see,
+  // producing a false failure. Waiting for the role to settle makes assertions
+  // observe the real permission state instead of the loading state.
+  //
+  // The listener is armed BEFORE the first navigation so the request is not
+  // missed, and is idempotent so repeated calls re-use the same flag.
+  if (!page.__roleResolved) {
+    page.__roleResolved = false;
+    page.on("response", (response) => {
+      if (/\/users\/login/i.test(response.url())) page.__roleResolved = true;
+    });
+  }
+
+  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+
+  if (refresh) {
+    await page.reload({ waitUntil: "domcontentloaded" });
+  }
+
+  // Settle gate: wait for the listing to have rendered before any assertion
+  // runs, so callers never observe the pre-hydration DOM.
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.__CONFIG__?.isometricApiUrl)), {
+      timeout: 30000,
+      message: "Expected the Breeze.AI runtime config to load before asserting on the listing",
+    })
+    .toBe(true);
+
+  // Awaited LAST and used only as a settle gate: it already waits for the
+  // input internally, so its return value is not needed here.
+  await getProjectListSearchInput(page);
+
+  // Wait for the role lookup to land. The page keeps its listener across the
+  // reload, so a role request from either navigation satisfies this.
+  await expect
+    .poll(() => page.__roleResolved, {
+      timeout: 30000,
+      message: "Expected the Breeze.AI role lookup to complete before asserting on role-gated controls",
+    })
+    .toBe(true);
+}
+
+/**
+ * Read the OIDC access token the SPA currently holds in sessionStorage.
+ *
+ * Returns null when no `oidc.user:*` entry is present (e.g. an unauthenticated
+ * context), so callers can assert on "no token" instead of crashing.
+ */
+export async function getSessionAccessToken(page) {
+  return page.evaluate(() => {
+    for (let i = 0; i < window.sessionStorage.length; i += 1) {
+      const key = window.sessionStorage.key(i);
+      if (key && key.startsWith("oidc.user:")) {
+        try {
+          return JSON.parse(window.sessionStorage.getItem(key))?.access_token || null;
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+}
+
+/**
+ * Force the injected OIDC session to look expired on the NEXT navigation.
+ *
+ * Must be called before `goto`, and relies on `addInitScript` ordering: the
+ * role fixture registers its injection first, so this script runs afterwards
+ * and overwrites the already-injected entry. Only `expires_at` is rewritten —
+ * the signature stays valid, so this exercises session-expiry handling rather
+ * than token tampering.
+ */
+export async function expireRoleSession(page) {
+  await page.addInitScript(() => {
+    try {
+      for (let i = 0; i < window.sessionStorage.length; i += 1) {
+        const key = window.sessionStorage.key(i);
+        if (key && key.startsWith("oidc.user:")) {
+          const entry = JSON.parse(window.sessionStorage.getItem(key));
+          entry.expires_at = Math.floor(Date.now() / 1000) - 3600;
+          window.sessionStorage.setItem(key, JSON.stringify(entry));
+        }
+      }
+    } catch {
+      /* non-fatal */
+    }
+  });
+}
+
+// ============================================================
+// Backend API helpers
+// ============================================================
+
+/**
+ * Fallback backend base URL, used only when the app does not expose
+ * `window.__CONFIG__` (for example an error page that never loaded config.js).
+ */
+export const FALLBACK_API_BASE_URL = "https://isometric-backend.accionbreeze.com";
+
+/**
+ * Resolve the backend API base URL from the app's own runtime config.
+ *
+ * IMPORTANT: the app origin does NOT serve the API. `https://ai.accionbreeze.com/api/*`
+ * returns the SPA HTML (GET) or an nginx 405 (POST/PUT/PATCH/DELETE). The real
+ * backend is published in `config.js` as `window.__CONFIG__.isometricApiUrl`, so
+ * the base URL is read from there instead of being hardcoded at call sites.
+ */
+export async function resolveApiBaseUrl(page) {
+  const configured = await page
+    .evaluate(() => window.__CONFIG__?.isometricApiUrl || null)
+    .catch(() => null);
+  return configured || FALLBACK_API_BASE_URL;
+}
+
+/**
+ * Call the Breeze.AI backend from inside the authenticated page context.
+ *
+ * Requests are issued via `page.evaluate` rather than Playwright's `request`
+ * fixture so they carry the app's real Origin — the backend's CORS policy only
+ * admits the application origin, and an out-of-context call would be rejected
+ * for reasons unrelated to the role under test.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ method?: string, path: string, token?: string|null, data?: unknown }} options
+ * @returns {Promise<{ status: number, ok: boolean, body: any }>}
+ */
+export async function apiRequest(page, { method = "GET", path, token = null, data } = {}) {
+  const baseUrl = await resolveApiBaseUrl(page);
+
+  return page.evaluate(
+    async ({ baseUrl, method, path, token, hasBody, body }) => {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers,
+        body: hasBody ? body : undefined,
+      });
+
+      const text = await response.text();
+      let parsed = text;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        /* keep raw text when the response is not JSON */
+      }
+      return { status: response.status, ok: response.ok, body: parsed };
+    },
+    { baseUrl, method, path, token, hasBody: data !== undefined, body: JSON.stringify(data ?? null) }
+  );
+}
+
+// ============================================================
+// Generic project-listing / project-card helpers
+// ============================================================
+
+/**
+ * The text of the project listing's empty state (e.g. "No projects found." or
+ * "No favourites yet"). Returns "" when cards are rendered instead.
+ */
+export async function getListingEmptyStateText(page) {
+  const emptyState = page
+    .getByText(/no projects found|no favourites yet|no results found|no authors available|no tags available/i)
+    .first();
+  if (!(await emptyState.isVisible().catch(() => false))) return "";
+  return (await emptyState.innerText()).trim();
+}
+
+/**
+ * Every interactive control rendered inside a project card, as
+ * `{ text, ariaLabel, title }` triples. Used to assert which actions a role is
+ * offered without coupling the test to a specific control's position.
+ */
+export async function readProjectCardControlNames(card) {
+  if (!card) return [];
+  return card.evaluate((element) =>
+    [...element.querySelectorAll("button, a, [role='button'], [role='menuitem']")]
+      .map((el) => ({
+        text: (el.innerText || "").trim(),
+        ariaLabel: el.getAttribute("aria-label") || "",
+        title: el.getAttribute("title") || "",
+      }))
+      .filter((control) => control.text || control.ariaLabel || control.title)
+  );
+}
+
+/** The ⋮ project-options trigger on a specific project card, if rendered. */
+export function projectOptionsMenuTrigger(card) {
+  return card
+    .getByRole("button", { name: /project options/i })
+    .or(card.locator('button[aria-label*="options" i], button[title*="options" i]'))
+    .first();
+}
+
+/** The favourite star on a specific project card, if rendered. */
+export function projectFavouriteTrigger(card) {
+  return card
+    .locator(
+      'button[aria-label*="favourite" i], button[aria-label*="favorite" i], ' +
+        'button[title*="favourite" i], button[title*="favorite" i], ' +
+        '[data-testid*="favourite" i], [data-testid*="favorite" i]'
+    )
+    .first();
+}
+
+/** Whether the ⋮ options trigger is offered on a given project card. */
+export async function isProjectOptionsMenuAvailable(card) {
+  return projectOptionsMenuTrigger(card).isVisible().catch(() => false);
+}
+
+/** Whether a favourite star is offered on a given project card. */
+export async function isProjectFavouriteAvailable(card) {
+  return projectFavouriteTrigger(card).isVisible().catch(() => false);
 }
 
 export async function ensureProjectCreated(page, projectState) {

@@ -386,4 +386,50 @@ export class CreateProjectPage {
   async isEmptyMetadataLabelVisible(projectName, timeout) {
     return this._isVisibleWithin(await this.emptyMetadataLabel(projectName), timeout);
   }
+
+  // ============================================================
+  // Project listing tabs
+  // ============================================================
+
+  /**
+   * The project-listing tab buttons, in render order.
+   *
+   * SCOPE NOTE — a plain role/name lookup is not safe here: the sidebar also
+   * contains a DISABLED button whose accessible name is "Projects", which is a
+   * navigation section rather than a listing tab. Scoping to the enabled,
+   * exactly-named sub-tabs keeps that sidebar control out of the result set.
+   */
+  get projectTabs() {
+    return this.page
+      .getByRole("button", { name: /^(my projects|favourites|archived)$/i })
+      .filter({ hasText: /^(my projects|favourites|archived)$/i });
+  }
+
+  /**
+   * A single listing tab by name ("My Projects" / "Favourites" / "Archived").
+   */
+  projectTab(name) {
+    const escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return this.projectTabs.filter({ hasText: new RegExp(`^${escaped}$`, "i") }).first();
+  }
+
+  /**
+   * Whether a listing tab is rendered at all.
+   */
+  async isProjectTabVisible(name, timeout = 10000) {
+    return this._isVisibleWithin(this.projectTab(name), timeout);
+  }
+
+  /**
+   * Whether the "Showing X to Y of N results" pagination summary is rendered.
+   *
+   * NOTE: the summary TEXT itself is read by the pre-existing
+   * `getProjectListSummary(page)` in dashboardPage.js, so it is reused rather
+   * than reimplemented here.
+   */
+  async isPaginationSummaryVisible() {
+    return this._isVisibleWithin(
+      this.page.locator("text=/showing\\s+\\d+\\s+to\\s+\\d+\\s+of\\s+\\d+\\s+results/i").first()
+    );
+  }
 }
