@@ -139,9 +139,9 @@ app.post("/api/run-test", async (req, res) => {
   // Per-module spec files for the regression suite.
   // Keys match what the UI sends in the `modules` array.
   const REGRESSION_MODULE_FILES = {
-    dashboard:     'tests/regression/dashboard.spec.mjs',
-    createproject: 'tests/regression/createproject.spec.mjs',
-    artifact:      'tests/regression/artifacts.spec.mjs',
+    dashboard:     ['tests/regression/dashboard.spec.mjs'],
+    createproject: ['tests/regression/createproject.spec.mjs', 'tests/regression/createproject-viewer-api.spec.mjs'],
+    artifact:      ['tests/regression/artifacts.spec.mjs'],
   };
 
   // Build Playwright args: prefer running a specific spec file/folder when mapped, otherwise fall back to using a @tag grep
@@ -150,7 +150,7 @@ app.post("/api/run-test", async (req, res) => {
     const selectedModules = Array.isArray(modules) ? modules.filter(Boolean) : [];
     const useModuleFiles = selectedModules.length > 0 && normalizedScenario.includes('regression');
     const specArgs = useModuleFiles
-      ? selectedModules.map(m => REGRESSION_MODULE_FILES[m]).filter(Boolean)
+      ? selectedModules.flatMap(m => REGRESSION_MODULE_FILES[m] || []).filter(Boolean)
       : [specFile];
 
     args = ['playwright', 'test', ...specArgs, '--project', browser, '--workers=1'];

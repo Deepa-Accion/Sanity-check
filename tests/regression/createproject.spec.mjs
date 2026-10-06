@@ -65,7 +65,7 @@ test.describe("Regression â€” Create Project", () => {
     await cleanupCreatedProjects(page, createdProjectNames);
   });
 
-  test("@regression @createproject @enduser BreezeAI create project with tag", async ({ page }) => {
+  test("@regression @createproject @enduser Verify End User can create a project with a tag", async ({ page }) => {
     const currentDateTime = new Date().toISOString().replace(/[:.]/g, "-");
     const projectName = `SanityCheck-${currentDateTime}-Automation`;
     const tag = uniqueTag("create");
@@ -82,19 +82,19 @@ test.describe("Regression â€” Create Project", () => {
     await expect(page).toHaveURL(/dashboard|[?&]page=\d+/i, { timeout: 20000 });
   });
 
-  test("@regression @createproject @enduser rejects an empty project name without creating a project", async ({ page }) => {
+  test("@regression @createproject @enduser Verify empty project names are rejected without creating a project", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
     expect(await createProjectPage.getProjectNameValue()).toBe("");
     expect(await createProjectPage.isSaveEnabled()).toBe(false);
   });
 
-  test("@regression @createproject @enduser rejects a whitespace-only project name", async ({ page }) => {
+  test("@regression @createproject @enduser Verify whitespace-only project names are rejected", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
     await createProjectPage.fillProjectName(" ");
     expect(await createProjectPage.isSaveEnabled()).toBe(false);
   });
 
-  test("@regression @createproject @enduser supports special characters in a project name", async ({ page }) => {
+  test("@regression @createproject @enduser Verify special characters are accepted in project names", async ({ page }) => {
     const name = uniqueProjectName("special-chars");
     const createProjectPage = await openCreateProject(page);
 
@@ -106,7 +106,7 @@ test.describe("Regression â€” Create Project", () => {
     await createProjectPage.waitForProjectDestination(name);
   });
 
-  test("@regression @createproject @enduser handles a duplicate project name without modifying the original", async ({ page }) => {
+  test("@regression @createproject @enduser Verify duplicate project names are rejected without changing the original", async ({ page }) => {
     const name = uniqueProjectName("duplicate");
     const first = await openCreateProject(page);
     await first.fillProjectName(name);
@@ -131,7 +131,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(projectCard(page, name)).toBeVisible({ timeout: 20000 });
   });
 
-  test("@regression @createproject @enduser cancels the form without saving entered data", async ({ page }) => {
+  test("@regression @createproject @enduser Verify the create form closes without saving entered data", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
     const name = uniqueProjectName("cancel");
     await createProjectPage.fillProjectName(name);
@@ -141,7 +141,7 @@ test.describe("Regression â€” Create Project", () => {
     expect(await createProjectPage.isCreateProjectTriggerVisible()).toBe(true);
   });
 
-  test("@regression @createproject @enduser closes the form with the X button without saving", async ({ page }) => {
+  test("@regression @createproject @enduser Verify the create form closes with the X button without saving", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
     await createProjectPage.fillProjectName(uniqueProjectName("close"));
     await createProjectPage.dismiss("close");
@@ -150,7 +150,7 @@ test.describe("Regression â€” Create Project", () => {
     expect(await createProjectPage.isCreateProjectTriggerVisible()).toBe(true);
   });
 
-  test("@regression @createproject @enduser closes the create dialog with Escape", async ({ page }) => {
+  test("@regression @createproject @enduser Verify the create dialog closes with Escape", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
     await createProjectPage.fillProjectName(uniqueProjectName("escape"));
     await createProjectPage.dismiss("escape");
@@ -158,7 +158,7 @@ test.describe("Regression â€” Create Project", () => {
     expect(await createProjectPage.isDialogVisible()).toBe(false);
   });
 
-  test("@regression @createproject @enduser creates a project with a short unique name", async ({ page }) => {
+  test("@regression @createproject @enduser Verify a short unique project name is accepted", async ({ page }) => {
     const projectName = uniqueProjectName("short");
     const createProjectPage = await openCreateProject(page);
     await createProjectPage.fillProjectName(projectName);
@@ -169,7 +169,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(page).toHaveURL(/\/dashboard\/[^/?#]+/i, { timeout: 20000 });
   });
 
-  test("@regression @createproject @enduser accepts a 200-character project name", async ({ page }) => {
+  test("@regression @createproject @enduser Verify a 200-character project name is accepted", async ({ page }) => {
     test.skip(true, "200-character project name scenario is not to be run.");
     const projectName = fixedLengthProjectName("len-", 200);
     const createProjectPage = await openCreateProject(page);
@@ -181,7 +181,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(page).toHaveURL(/\/dashboard\/[^/?#]+/i, { timeout: 20000 });
   });
 
-  test("@regression @createproject @enduser shows the created project name and tag on the dashboard", async ({ page }) => {
+  test("@regression @createproject @enduser Verify the created project name and tag are shown on the dashboard", async ({ page }) => {
     const projectName = uniqueProjectName("dashboard-tag");
     const tag = uniqueTag("card");
     const createProjectPage = await openCreateProject(page);
@@ -199,7 +199,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(createdCard).toContainText(tag);
   });
 
-  test("@regression @createproject @enduser rejects a tag that exceeds the 50-character limit", async ({ page }) => {
+  test("@regression @createproject @enduser Verify tags longer than 50 characters are rejected", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
 
     await createProjectPage.fillProjectName(uniqueProjectName("tag-limit"));
@@ -209,7 +209,7 @@ test.describe("Regression â€” Create Project", () => {
     expect(result.tagValue).toBe("T".repeat(51));
   });
 
-  test("@regression @createproject @enduser rejects a whitespace-only tag value without adding it", async ({ page }) => {
+  test("@regression @createproject @enduser Verify whitespace-only tag values are rejected without adding them", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
 
     await createProjectPage.fillProjectName(uniqueProjectName("tag-whitespace"));
@@ -220,14 +220,14 @@ test.describe("Regression â€” Create Project", () => {
     expect(await createProjectPage.isSaveEnabled()).toBe(true);
   });
 
-  test("@regression @createproject @enduser displays the name, description, and tag fields in the create dialog", async ({ page }) => {
+  test("@regression @createproject @enduser Verify the create dialog displays the name description and tag fields", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
 
     expect(await createProjectPage.isDialogVisible()).toBe(true);
     expect(await createProjectPage.areFormFieldsVisible()).toBe(true);
   });
 
-  test("@regression @createproject @enduser creates a project with a description and tag visible on its card", async ({ page }) => {
+  test("@regression @createproject @enduser Verify project cards show the description and tag after creation", async ({ page }) => {
     const projectName = uniqueProjectName("description-tag");
     const description = uniqueTag("description");
     const tag = uniqueTag("card");
@@ -249,7 +249,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect.poll(() => getProjectAuthor(page, projectName)).not.toBe("");
   });
 
-  test("@regression @createproject @enduser displays the author on the created project card", async ({ page }) => {
+  test("@regression @createproject @enduser Verify the created project card shows the author", async ({ page }) => {
     const projectName = uniqueProjectName("author");
     const createProjectPage = await openCreateProject(page);
     await createProjectPage.fillProjectName(projectName);
@@ -261,7 +261,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect.poll(() => getProjectAuthor(page, projectName)).not.toBe("");
   });
 
-  test("@regression @createproject @enduser renders HTML in a project name as text", async ({ page }) => {
+  test("@regression @createproject @enduser Verify HTML in project names is rendered as text", async ({ page }) => {
     const projectName = `<script>alert('xss-${getUniqueSuffix()}')</script>`;
     const dialogs = await captureScriptDialogs(page);
     const createProjectPage = await openCreateProject(page);
@@ -274,7 +274,7 @@ test.describe("Regression â€” Create Project", () => {
     expect(dialogs).toEqual([]);
   });
 
-  test("@regression @createproject @enduser shows a fetch error and keeps the form open when project creation fails", async ({ page }) => {
+  test("@regression @createproject @enduser Verify project creation keeps the form open and shows a fetch error on failure", async ({ page }) => {
     const createProjectPage = await openCreateProject(page);
     await createProjectPage.fillProjectName(uniqueProjectName("network-failure"));
     await page.route(projectCreateRequestPattern, (route) => route.abort());
@@ -289,7 +289,7 @@ test.describe("Regression â€” Create Project", () => {
     await createProjectPage.waitForFetchErrorMessage();
   });
 
-  test("@regression @createproject @enduser @project-edit updates the description of an own project", async ({ page }) => {
+  test("@regression @createproject @enduser @project-edit Verify an End User can update the description of their own project", async ({ page }) => {
     const projectName = uniqueProjectName("edit");
     const description = uniqueTag("updated");
     await createProject(page, projectName);
@@ -303,7 +303,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(dashboard.projectCard(projectName)).toContainText(description);
   });
 
-  test("@regression @createproject @enduser @project-favourite favourites and unfavourites an own project", async ({ page }) => {
+  test("@regression @createproject @enduser @project-favourite Verify an End User can favourite and unfavourite their own project", async ({ page }) => {
     const projectName = uniqueProjectName("favourite");
     await createProject(page, projectName);
     createdProjectNames.add(projectName);
@@ -319,7 +319,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect.poll(() => projectCard(page, projectName).isVisible().catch(() => false)).toBe(false);
   });
 
-  test("@regression @createproject @enduser @project-delete confirms an own project can be deleted", async ({ page }) => {
+  test("@regression @createproject @enduser @project-delete Verify an End User can delete their own project", async ({ page }) => {
     const projectName = uniqueProjectName("delete");
     await createProject(page, projectName);
     createdProjectNames.add(projectName);
@@ -330,7 +330,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(projectCard(page, projectName)).not.toBeVisible();
   });
 
-  test("@regression @createproject @enduser @project-options exposes the export option for an own project", async ({ page }) => {
+  test("@regression @createproject @enduser @project-options Verify an End User can export their own project", async ({ page }) => {
     const projectName = uniqueProjectName("options");
     await createProject(page, projectName);
     createdProjectNames.add(projectName);
@@ -342,7 +342,7 @@ test.describe("Regression â€” Create Project", () => {
     await expect(menu.getByRole("menuitem", { name: /export project/i })).toBeVisible();
   });
 
-  test("@regression @createproject @enduser @navigation returns to the project listing with browser back", async ({ page }) => {
+  test("@regression @createproject @enduser @navigation Verify browser back returns to the project listing", async ({ page }) => {
     const projectId = await selectFirstListedProject(page);
     expect(projectId).toBeTruthy();
     await expect(page).toHaveURL(/\/dashboard\/[^/?#]+/i);
@@ -351,7 +351,7 @@ test.describe("Regression â€” Create Project", () => {
   });
 
   test.describe("End User project-listing coverage from Final.csv", () => {
-    test("@regression @createproject @enduser @listing verifies authenticated page chrome and End User controls", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify authenticated End User page chrome and controls are visible", async ({ page }) => {
       const createProjectPage = new CreateProjectPage(page);
 
       await expect(page).toHaveTitle("Breeze.AI");
@@ -362,14 +362,14 @@ test.describe("Regression â€” Create Project", () => {
       await expectNoControlsMatching(page, adminControlPatterns);
     });
 
-    test("@regression @createproject @enduser @listing switches project tabs and exposes active state", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify project tabs switch and show the active state", async ({ page }) => {
       for (const tabName of ["My Projects", "Favourites"]) {
         await selectProjectTab(page, tabName);
         expect(await isProjectTabSelected(page, tabName)).toBe(true);
       }
     });
 
-    test("@regression @createproject @enduser @listing verifies accessible project cards and relative metadata", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify accessible project cards show the expected metadata", async ({ page }) => {
       const firstCard = await getFirstProjectCard(page);
       if (!firstCard) {
         test.skip(true, "No accessible project is available for card metadata validation.");
@@ -384,7 +384,7 @@ test.describe("Regression â€” Create Project", () => {
       expect(await createProjectPage.isEmptyMetadataLabelVisible(projectName)).toBe(true);
     });
 
-    test("@regression @createproject @enduser @listing searches accessible projects and restores the list", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify project search returns results and restores the list", async ({ page }) => {
       const firstCard = await getFirstProjectCard(page);
       if (!firstCard) {
         test.skip(true, "No accessible project is available for search validation.");
@@ -401,7 +401,7 @@ test.describe("Regression â€” Create Project", () => {
       await clearProjectSearch(page);
     });
 
-    test("@regression @createproject @enduser @listing treats special search input as literal text", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify special search input is treated as literal text", async ({ page }) => {
       const dialogs = await captureScriptDialogs(page);
       const payload = "<script>alert('xss')</script>";
       const searchInput = await typeProjectSearch(page, payload);
@@ -409,14 +409,14 @@ test.describe("Regression â€” Create Project", () => {
       expect(dialogs).toEqual([]);
     });
 
-    test("@regression @createproject @enduser @listing opens and clears the Author filter", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify the Author filter opens and clears correctly", async ({ page }) => {
       await openAuthorFilter(page);
       await waitForFilterDropdownOpen(page);
       await page.keyboard.press("Escape");
       await waitForFilterDropdownClosed(page);
     });
 
-    test("@regression @createproject @enduser @listing applies an accessible Author filter", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify an accessible Author filter is applied correctly", async ({ page }) => {
       const firstCard = await getFirstProjectCard(page);
       if (!firstCard) {
         test.skip(true, "No accessible project is available for Author-filter validation.");
@@ -430,7 +430,7 @@ test.describe("Regression â€” Create Project", () => {
       await clearAuthorFilter(page);
     });
 
-    test("@regression @createproject @enduser @listing verifies pagination summary when results are available", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify the pagination summary matches the available results", async ({ page }) => {
       const summary = await getProjectListSummaryDetails(page);
       if (summary.total === 0) {
         test.skip(true, "No accessible projects are available for pagination validation.");
@@ -440,17 +440,17 @@ test.describe("Regression â€” Create Project", () => {
       expect(summary.total).toBeGreaterThanOrEqual(summary.last);
     });
 
-    test("@regression @createproject @enduser @listing navigates from a project card to its dashboard", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify project cards navigate to the project dashboard", async ({ page }) => {
       const projectId = await selectFirstListedProject(page);
       expect(projectId).toBeTruthy();
       await expect(page).toHaveURL(/\/dashboard\/[^/?#]+/i);
     });
 
-    test("@regression @createproject @enduser @listing opens the End User profile menu", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify the End User profile menu opens", async ({ page }) => {
       await openProfileMenu(page);
     });
 
-    test("@regression @createproject @enduser @listing preserves the listing layout at tablet width", async ({ page }) => {
+    test("@regression @createproject @enduser @listing Verify the listing layout remains correct at tablet width", async ({ page }) => {
       const createProjectPage = new CreateProjectPage(page);
 
       await page.setViewportSize({ width: 768, height: 1024 });
@@ -487,12 +487,12 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // Page load and session
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject @listing loads the project listing for a Viewer session", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer session loads the project listing", async ({ viewerPage: page }) => {
     await expect(page).toHaveURL(/\?page=\d+|\/$/i);
     await expect(page).toHaveTitle("Breeze.AI");
   });
 
-  viewerTest("@viewer @regression @createproject @listing shows the Viewer-accessible listing chrome", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer sees the accessible listing chrome", async ({ viewerPage: page }) => {
     const createProjectPage = new CreateProjectPage(page);
 
     // The Viewer is shown the same page chrome as any other role.
@@ -502,7 +502,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     expect(await createProjectPage.isPageLoaded()).toBe(true);
   });
 
-  viewerTest("@viewer @regression @createproject @listing keeps the Viewer session across a hard refresh", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer session persists across a hard refresh", async ({ viewerPage: page }) => {
     // Permissions must be unchanged by a reload — in particular the Viewer
     // must not gain the Create Project button by re-rendering.
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -512,7 +512,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await expect(page).toHaveTitle("Breeze.AI");
   });
 
-  viewerTest("@viewer @regression @createproject @listing redirects to login when the Viewer session is expired", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify expired Viewer sessions redirect to login", async ({ viewerPage: page }) => {
     // Rewrite only `expires_at`; the token signature is untouched, so this
     // exercises session-expiry handling rather than token tampering.
     await expireRoleSession(page);
@@ -524,7 +524,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // Page load — controls the Viewer must NOT see
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject cannot see the Create Project button", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject Verify the Viewer cannot see the Create Project button", async ({ viewerPage: page }) => {
     const createProjectPage = new CreateProjectPage(page);
 
     // The sheet allows "absent OR disabled"; the app hides it entirely, and a
@@ -533,11 +533,11 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await expect(page.getByRole("button", { name: /create project/i })).toHaveCount(0);
   });
 
-  viewerTest("@viewer @regression @createproject cannot see admin-only controls", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject Verify the Viewer cannot see admin-only controls", async ({ viewerPage: page }) => {
     await expectNoControlsMatching(page, adminControlPatterns);
   });
 
-  viewerTest("@viewer @regression @createproject @listing cannot reach the admin users page", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer cannot access the admin users page", async ({ viewerPage: page }) => {
     // The application exposes no /admin/users route, so this navigation can be
     // aborted at the network layer while the SPA boots its not-found page.
     //
@@ -563,7 +563,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await expect(page.getByRole("row")).toHaveCount(0);
   });
 
-  viewerTest("@viewer @regression @createproject @listing cannot open a project the Viewer has no access to", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer cannot open a project outside their access", async ({ viewerPage: page }) => {
     // A project id the Viewer was never granted: the app must refuse to load
     // it and send the Viewer back to the listing rather than leaking content.
     await page.goto(
@@ -579,14 +579,14 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // Project visibility
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject @listing shows no owned projects for the Viewer", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer sees no owned projects", async ({ viewerPage: page }) => {
     // The Viewer owns nothing, so the active tab renders the empty state
     // rather than any project card.
     await expect(page.locator("article")).toHaveCount(0);
     expect(await getListingEmptyStateText(page)).toMatch(/no projects found/i);
   });
 
-  viewerTest("@viewer @regression @createproject @listing exposes no authors or tags to the Viewer", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer cannot see authors or tags", async ({ viewerPage: page }) => {
     // Author/Tag facets are derived from the Viewer's accessible projects.
     // With none accessible, the facets must be empty rather than leaking the
     // authors or tags of other users' private projects.
@@ -613,7 +613,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // Project tabs
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject @listing switches between the Viewer listing tabs", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer can switch between listing tabs", async ({ viewerPage: page }) => {
     const createProjectPage = new CreateProjectPage(page);
 
     for (const tabName of ["Favourites", "Archived", "My Projects"]) {
@@ -623,7 +623,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     }
   });
 
-  viewerTest("@viewer @regression @createproject @listing shows the Favourites empty state for a Viewer with no favourites", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer sees the empty favourites state", async ({ viewerPage: page }) => {
     await selectListingTab(page, "Favourites");
 
     await expect(page.locator("article")).toHaveCount(0);
@@ -634,7 +634,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // Project cards — the Viewer must be offered no mutating controls
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject @listing offers no create, edit, delete or import control on project cards", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify project cards do not show create edit delete or import controls for the Viewer", async ({ viewerPage: page }) => {
     // The Archived tab is the only Viewer-visible tab that can contain cards,
     // so it is the meaningful place to assert on card-level permissions.
     await selectListingTab(page, "Archived");
@@ -651,7 +651,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     expect(labels).not.toMatch(/create project|edit|delete|import/i);
   });
 
-  viewerTest("@viewer @regression @createproject @listing offers no project options menu on a project card", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify project cards do not show a project options menu for the Viewer", async ({ viewerPage: page }) => {
     await selectListingTab(page, "Archived");
 
     const card = await getFirstProjectCard(page);
@@ -664,7 +664,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     expect(await isProjectOptionsMenuAvailable(card)).toBe(false);
   });
 
-  viewerTest("@viewer @regression @createproject @listing offers no Edit Project option to the Viewer", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer cannot see the Edit Project option", async ({ viewerPage: page }) => {
     // Defence in depth: assert the label is absent from the whole document,
     // not only from a card, so an Edit control rendered outside a card is caught.
     await expect(page.getByText(/edit project/i)).toHaveCount(0);
@@ -672,7 +672,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await expect(page.getByRole("button", { name: /^edit$/i })).toHaveCount(0);
   });
 
-  viewerTest("@viewer @regression @createproject @listing offers no Delete Project option to the Viewer", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer cannot see the Delete Project option", async ({ viewerPage: page }) => {
     await expect(page.getByText(/delete project/i)).toHaveCount(0);
     await expect(page.getByRole("menuitem", { name: /^delete$/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^delete$/i })).toHaveCount(0);
@@ -759,7 +759,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // Navigation
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject @navigation returns to the listing from a project dashboard", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @navigation Verify the Viewer returns to the listing after navigating from a project dashboard", async ({ viewerPage: page }) => {
     await selectListingTab(page, "Archived");
 
     const card = await getFirstProjectCard(page);
@@ -781,7 +781,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
   // User profile menu
   // ------------------------------------------------------------------
 
-  viewerTest("@viewer @regression @createproject @listing opens the Viewer profile menu with Settings and Logout", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer profile menu includes Settings and Logout", async ({ viewerPage: page }) => {
     await openProfileMenu(page);
 
     // Scoped by accessible name so a lingering Author/Tags filter overlay
@@ -791,7 +791,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await expect(menu.getByText(/logout/i).first()).toBeVisible();
   });
 
-  viewerTest("@viewer @regression @createproject @listing closes the profile menu without navigating", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @listing Verify the Viewer profile menu closes without navigation", async ({ viewerPage: page }) => {
     const urlBefore = page.url();
 
     // Scoped by ACCESSIBLE NAME rather than `getByRole("menu").last()`. The
@@ -808,7 +808,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     expect(page.url()).toBe(urlBefore);
   });
 
-  viewerTest("@viewer @regression @createproject @navigation reaches the Viewer Settings page without project-management controls", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @navigation Verify the Viewer Settings page does not expose project management controls", async ({ viewerPage: page }) => {
     // Scoped by accessible name so the click cannot land on a lingering
     // Author/Tags filter overlay, which is also a `<div role="menu">`.
     await openProfileMenu(page);
@@ -823,7 +823,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await expect(page.getByText(/create project|edit project|delete project/i)).toHaveCount(0);
   });
 
-  viewerTest("@viewer @regression @createproject @navigation logs the Viewer out", async ({ viewerPage: page }) => {
+  viewerTest("@viewer @regression @createproject @navigation Verify the Viewer can log out", async ({ viewerPage: page }) => {
     await openProfileMenu(page);
 
     // Clicking Logout must hand control to the identity provider's
@@ -860,7 +860,7 @@ test.describe("Regression — Create Project (Viewer)", () => {
     await idpLogout;
   });
 
-viewerTest("@viewer @regression @createproject @navigation cannot return to authenticated pages after logging out", async ({ viewerPage: page }) => {
+viewerTest("@viewer @regression @createproject @navigation Verify the Viewer cannot return to authenticated pages after logout", async ({ viewerPage: page }) => {
     // Simulate the post-logout state: the Viewer's OIDC entry is removed, so
     // the app must refuse to serve the authenticated listing and bounce to
     // /login instead.

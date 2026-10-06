@@ -511,14 +511,15 @@ export async function resolveApiBaseUrl(page) {
  * for reasons unrelated to the role under test.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ method?: string, path: string, token?: string|null, data?: unknown }} options
+ * @param {{ method?: string, path: string, token?: string|null, data?: unknown, readBody?: boolean }} options
+ * @param {boolean} [options.readBody=true] Set false for binary or attachment responses.
  * @returns {Promise<{ status: number, ok: boolean, body: any }>}
  */
-export async function apiRequest(page, { method = "GET", path, token = null, data } = {}) {
+export async function apiRequest(page, { method = "GET", path, token = null, data, readBody = true } = {}) {
   const baseUrl = await resolveApiBaseUrl(page);
 
   return page.evaluate(
-    async ({ baseUrl, method, path, token, hasBody, body }) => {
+    async ({ baseUrl, method, path, token, hasBody, body, readBody }) => {
       const headers = { "Content-Type": "application/json" };
       if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -528,16 +529,18 @@ export async function apiRequest(page, { method = "GET", path, token = null, dat
         body: hasBody ? body : undefined,
       });
 
-      const text = await response.text();
+      const text = readBody ? await response.text() : null;
       let parsed = text;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        /* keep raw text when the response is not JSON */
+      if (readBody) {
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          /* keep raw text when the response is not JSON */
+        }
       }
       return { status: response.status, ok: response.ok, body: parsed };
     },
-    { baseUrl, method, path, token, hasBody: data !== undefined, body: JSON.stringify(data ?? null) }
+    { baseUrl, method, path, token, hasBody: data !== undefined, body: JSON.stringify(data ?? null), readBody }
   );
 }
 
