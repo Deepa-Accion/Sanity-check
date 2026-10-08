@@ -140,9 +140,12 @@ app.post("/api/run-test", async (req, res) => {
   // Keys match what the UI sends in the `modules` array.
   const REGRESSION_MODULE_FILES = {
     dashboard:     ['tests/regression/dashboard.spec.mjs'],
-    createproject: ['tests/regression/createproject.spec.mjs', 'tests/regression/createproject-viewer-api.spec.mjs'],
+    createproject: ['tests/regression/createproject.spec.mjs', 'tests/regression/createproject-roles-api.spec.mjs'],
     artifact:      ['tests/regression/artifacts.spec.mjs'],
   };
+
+  const roleFilter = ['admin', 'viewer', 'enduser'].includes(role) ? `@${role}` : null;
+  let fallbackTag = null;
 
   // Build Playwright args: prefer running a specific spec file/folder when mapped, otherwise fall back to using a @tag grep
   let args;
@@ -159,17 +162,28 @@ app.post("/api/run-test", async (req, res) => {
       logs.push(`Module filter: running [${selectedModules.join(', ')}] → ${specArgs.join(', ')}`);
     }
   } else {
-    const tag = testType || (normalizedScenario.includes('regression') ? 'regression' : 'sanity');
-    logs.push(`No specific spec file mapped. Falling back to @${tag} grep.`);
+    fallbackTag = testType || (normalizedScenario.includes('regression') ? 'regression' : 'sanity');
+    logs.push(`No specific spec file mapped. Falling back to @${fallbackTag} grep.`);
     args = [
       'playwright',
       'test',
       '--grep',
-      `@${tag}`,
+      `@${fallbackTag}`,
       '--project',
       browser,
       '--workers=1'
     ];
+  }
+
+  if (roleFilter && normalizedScenario.includes('regression')) {
+    if (fallbackTag) {
+      args[args.indexOf('--grep') + 1] = `"(?=.*@${fallbackTag})(?=.*${roleFilter})"`;
+    } else {
+      args.push('--grep', roleFilter);
+    }
+    logs.push(`Role filter applied: ${roleFilter}`);
+  } else {
+    logs.push('Role filter applied: none (Default role selected or no role provided).');
   }
 
   // Prepare environment for child process

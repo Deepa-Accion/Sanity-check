@@ -18,7 +18,7 @@ export default function App() {
   const [prodKey, setProdKey] = useState("");
   const [prodToken, setProdToken] = useState("");
   const [prodAuthError, setProdAuthError] = useState(null);
-  const [role, setRole] = useState("default");
+  const [role, setRole] = useState("enduser");
   const [clientUrl, setClientUrl] = useState("");
   const [clientUrlError, setClientUrlError] = useState(null);
   // Module filter for regression dev: null = all modules (no filter sent to server)
@@ -487,7 +487,7 @@ export default function App() {
                 onChange={(e) => setRole(e.target.value)}
                 disabled={testInProgress}
               >
-                <option value="default">Default</option>
+                <option value="enduser">End User</option>
                 <option value="admin">Admin</option>
                 <option value="viewer">Viewer</option>
               </select>

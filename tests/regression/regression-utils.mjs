@@ -27,8 +27,14 @@ export const fixedLengthProjectName = (suffix, length) => {
 };
 
 export async function openCreateProject(page) {
-  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
   const createProjectPage = new CreateProjectPage(page);
+  if (await createProjectPage.formIsVisible().catch(() => false)) {
+    await createProjectPage.cancelOrClose();
+  }
+  if (!(await createProjectPage.isCreateProjectTriggerVisible(1000))) {
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+  }
+  await getProjectListSearchInput(page);
   await createProjectPage.open();
   return createProjectPage;
 }
@@ -84,6 +90,17 @@ export async function getProjectListSearchInput(page) {
   const input = page.getByRole("textbox", { name: /search projects/i }).first();
   await expect(input).toBeVisible({ timeout: 20000 });
   return input;
+}
+
+export async function refreshProjectListing(page) {
+  const listingResponse = page.waitForResponse(
+    (response) => /\/projects\/accessible(?:\?|$)/i.test(response.url()),
+    { timeout: 30000 }
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await getProjectListSearchInput(page);
+  const response = await listingResponse;
+  expect(response.ok(), `Project listing refresh returned HTTP ${response.status()}`).toBe(true);
 }
 
 export async function typeProjectSearch(page, value) {
@@ -392,12 +409,14 @@ export async function openRoleListing(page, { refresh = true } = {}) {
   // observe the real permission state instead of the loading state.
   //
   // The listener is armed BEFORE the first navigation so the request is not
-  // missed, and is idempotent so repeated calls re-use the same flag.
-  if (!page.__roleResolved) {
+  // missed. Keep the resolved state across reloads that reuse the same session
+  // and therefore do not issue another role lookup.
+  if (!page.__roleListenerInstalled) {
     page.__roleResolved = false;
     page.on("response", (response) => {
       if (/\/users\/login/i.test(response.url())) page.__roleResolved = true;
     });
+    page.__roleListenerInstalled = true;
   }
 
   await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
@@ -415,18 +434,15 @@ export async function openRoleListing(page, { refresh = true } = {}) {
     })
     .toBe(true);
 
-  // Awaited LAST and used only as a settle gate: it already waits for the
-  // input internally, so its return value is not needed here.
-  await getProjectListSearchInput(page);
-
-  // Wait for the role lookup to land. The page keeps its listener across the
-  // reload, so a role request from either navigation satisfies this.
+  // Role-gated listing controls may not render until this lookup completes.
   await expect
     .poll(() => page.__roleResolved, {
       timeout: 30000,
       message: "Expected the Breeze.AI role lookup to complete before asserting on role-gated controls",
     })
     .toBe(true);
+
+  await getProjectListSearchInput(page);
 }
 
 /**
@@ -542,6 +558,172 @@ export async function apiRequest(page, { method = "GET", path, token = null, dat
     },
     { baseUrl, method, path, token, hasBody: data !== undefined, body: JSON.stringify(data ?? null), readBody }
   );
+}
+
+export async function waitForProjectAbsentFromApi(page, projectId, token, timeout = 60000) {
+  if (!projectId) {
+    throw new Error("Cannot verify project deletion without a project ID");
+  }
+  if (!token) {
+    throw new Error("Cannot verify project deletion without an authenticated access token");
+  }
+
+  const activeQuery = new URLSearchParams({
+    "filters[uuid][$eq]": projectId,
+    page: "1",
+    limit: "10",
+  });
+  const archivedQuery = new URLSearchParams({
+    "filters[uuid][$eq]": projectId,
+    page: "1",
+    limit: "10",
+    archived: "true",
+  });
+  let activeResponse;
+  let archivedResponse;
+
+  try {
+    await expect
+      .poll(
+        async () => {
+          [activeResponse, archivedResponse] = await Promise.all([
+            apiRequest(page, {
+              path: `/projects/accessible?${activeQuery}`,
+              token,
+            }),
+            apiRequest(page, {
+              path: `/projects/accessible?${archivedQuery}`,
+              token,
+            }),
+          ]);
+          if (activeResponse.status !== 200 || archivedResponse.status !== 200) {
+            throw new Error(
+              `Project deletion check returned HTTP ${activeResponse.status} (active) and ` +
+              `${archivedResponse.status} (archived)`
+            );
+          }
+          if (
+            !Array.isArray(activeResponse.body?.data) ||
+            !Array.isArray(archivedResponse.body?.data)
+          ) {
+            throw new Error("Project deletion check returned an invalid project listing");
+          }
+          const isAbsent = (projects) =>
+            projects.every((project) => (project.uuid || project.id) !== projectId);
+          return isAbsent(activeResponse.body.data) && isAbsent(archivedResponse.body.data);
+        },
+        {
+          timeout,
+          intervals: [500, 1000, 2000, 5000],
+          message: `Expected project ${projectId} to disappear from the API listing`,
+        }
+      )
+      .toBe(true);
+  } catch (error) {
+      const summarize = (response) =>
+        Array.isArray(response?.body?.data)
+          ? response.body.data
+            .filter((project) => (project.uuid || project.id) === projectId)
+            .map((project) => ({
+              uuid: project.uuid || null,
+            id: project.id || null,
+            archived: project.archived ?? project.isArchived ?? null,
+            deletedAt: project.deletedAt ?? null,
+            status: project.status ?? null,
+          }))
+        : [];
+    throw new Error(
+      `${error.message}\nMatching API records: ${JSON.stringify({
+        active: summarize(activeResponse),
+        archived: summarize(archivedResponse),
+      })}`
+    );
+  }
+
+  return { active: activeResponse, archived: archivedResponse };
+}
+
+export async function waitForProjectHardDeleteCompletion(page, projectId, token, timeout = 180000) {
+  if (!projectId) {
+    throw new Error("Cannot verify hard deletion without a project ID");
+  }
+  if (!token) {
+    throw new Error("Cannot verify hard deletion without an authenticated access token");
+  }
+
+  let lastResult = null;
+  try {
+    await expect
+      .poll(
+        async () => {
+          lastResult = await apiRequest(page, {
+            path: `/projects/${encodeURIComponent(projectId)}/hard-delete-status`,
+            token,
+          });
+          if (lastResult.status !== 200) {
+            throw new Error(
+              `Hard-delete status API returned HTTP ${lastResult.status}: ${JSON.stringify(lastResult.body)}`
+            );
+          }
+          if (lastResult.body?.projectUuid !== projectId) {
+            throw new Error(
+              `Hard-delete status UUID mismatch: expected ${projectId}, got ${lastResult.body?.projectUuid || "none"}`
+            );
+          }
+          const state = String(lastResult.body?.jobState || "").toLowerCase();
+          if (["failed", "error", "cancelled"].includes(state)) {
+            throw new Error(
+              `Hard-delete job ${state}: ${lastResult.body?.failureReason || JSON.stringify(lastResult.body)}`
+            );
+          }
+          return state;
+        },
+        {
+          timeout,
+          intervals: [500, 1000, 2000, 5000],
+          message: `Expected hard-delete job for ${projectId} to complete`,
+        }
+      )
+      .toBe("completed");
+  } catch (error) {
+    const finalResult = await apiRequest(page, {
+      path: `/projects/${encodeURIComponent(projectId)}/hard-delete-status`,
+      token,
+    }).catch((statusError) => {
+      throw new Error(`${error.message}\nFinal hard-delete status request failed: ${statusError.message}`);
+    });
+    if (
+      finalResult.status === 200 &&
+      finalResult.body?.projectUuid === projectId &&
+      String(finalResult.body?.jobState || "").toLowerCase() === "completed"
+    ) {
+      lastResult = finalResult;
+    } else {
+      throw new Error(
+        `${error.message}\nFinal hard-delete status: ${JSON.stringify(finalResult.body ?? null)}`
+      );
+    }
+  }
+
+  if (String(lastResult.body?.jobState || "").toLowerCase() !== "completed") {
+    throw new Error(
+      `Hard-delete job for ${projectId} did not complete: ${JSON.stringify(lastResult?.body ?? null)}`
+    );
+  }
+
+  if (!lastResult.body.completedSteps?.includes("Project record")) {
+    throw new Error(
+      `Hard-delete job for ${projectId} completed without confirming Project record removal: ` +
+      JSON.stringify(lastResult.body)
+    );
+  }
+  if (lastResult.body.counts?.project !== 1) {
+    throw new Error(
+      `Hard-delete job for ${projectId} reported an unexpected project removal count: ` +
+      JSON.stringify(lastResult.body.counts)
+    );
+  }
+  return lastResult.body;
 }
 
 // ============================================================

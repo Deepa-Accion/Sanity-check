@@ -32,7 +32,7 @@ try {
 
 const createdProjectNames = new Set();
 
-test.describe("Regression - Artifacts", () => {
+test.describe("Regression - Artifacts @enduser", () => {
   // Serial mode: tests run one-after-another and share a single browser page.
   // This allows beforeAll/afterAll to hold the shared page for all 4 tests.
   test.describe.configure({ mode: "serial" });
