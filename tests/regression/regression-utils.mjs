@@ -1,43 +1,792 @@
 import { expect } from "@playwright/test";
-import { createProject, DEFAULT_BASE_URL } from "../../Pages/dashboardPage.js";
+import { createProject, DEFAULT_BASE_URL, projectCard } from "../../Pages/dashboardPage.js";
+import { ProjectPage } from "../../Pages/projectPage.js";
 import { uploadFirstpdfDocument, generateFunctionalOntology } from "../../Pages/knowlegeBase.js";
 import { CreateProjectPage } from "../../Pages/createProjectFile.js";
 
+// Counter to ensure uniqueness even when Date.now() returns the same value
+let uniqueCounter = 0;
+export const getUniqueSuffix = () => `${Date.now()}-${++uniqueCounter}`;
+
 export const uniqueProjectName = (suffix) =>
-  `Playwright-CreateProject-${suffix}-${Date.now()}`;
+  `Playwright-CreateProject-${suffix}-${getUniqueSuffix()}`;
+
+/**
+ * Build a unique tag value. Tag length stays within the app's 50-character
+ * limit so tags generated here never collide with the over-length scenario.
+ */
+export const uniqueTag = (suffix) => `Tag-${suffix}-${getUniqueSuffix()}`;
+
+/**
+ * Build a project name of an exact total length (used for max-length cases).
+ * The tail is padded deterministically so the result is always `length` chars.
+ */
+export const fixedLengthProjectName = (suffix, length) => {
+  const base = `${suffix}${getUniqueSuffix()}`;
+  return base.length >= length ? base.slice(0, length) : base + "A".repeat(length - base.length);
+};
 
 export async function openCreateProject(page) {
-  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
   const createProjectPage = new CreateProjectPage(page);
+  if (await createProjectPage.formIsVisible().catch(() => false)) {
+    await createProjectPage.cancelOrClose();
+  }
+  if (!(await createProjectPage.isCreateProjectTriggerVisible(1000))) {
+    await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+  }
+  await getProjectListSearchInput(page);
   await createProjectPage.open();
   return createProjectPage;
 }
 
+// ============================================================
+// Generic listing / search / tab helpers
+// ============================================================
+
+/**
+ * Read the project name rendered on a project card.
+ *
+ * A card can be in the DOM and "visible" before React has populated its text,
+ * so an immediate innerText() can return "". Poll until a non-empty name is
+ * rendered rather than reading a blank snapshot.
+ */
+export async function getProjectCardName(card, timeout = 20000) {
+  if (!card) return "";
+
+  let name = "";
+  await expect
+    .poll(
+      async () => {
+        const lines = (await card.innerText())
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        name = lines[0] || "";
+        return name;
+      },
+      { timeout, message: "Expected the project card to render a project name" }
+    )
+    .not.toBe("");
+
+  return name;
+}
+
+/**
+ * Return the first visible project card, or null when the list stays empty.
+ * Waits for the async listing to render before deciding the list is empty â€”
+ * an immediate `count()` check reports 0 while the cards are still loading.
+ */
+export async function getFirstProjectCard(page, timeout = 30000) {
+  const card = page.locator("article").first();
+  try {
+    await expect(card).toBeVisible({ timeout });
+    return card;
+  } catch {
+    return null;
+  }
+}
+
+export async function getProjectListSearchInput(page) {
+  const input = page.getByRole("textbox", { name: /search projects/i }).first();
+  await expect(input).toBeVisible({ timeout: 20000 });
+  return input;
+}
+
+export async function refreshProjectListing(page) {
+  const listingResponse = page.waitForResponse(
+    (response) => /\/projects\/accessible(?:\?|$)/i.test(response.url()),
+    { timeout: 30000 }
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await getProjectListSearchInput(page);
+  const response = await listingResponse;
+  expect(response.ok(), `Project listing refresh returned HTTP ${response.status()}`).toBe(true);
+}
+
+export async function typeProjectSearch(page, value) {
+  const input = await getProjectListSearchInput(page);
+  await input.fill(value);
+  return input;
+}
+
+/**
+ * Capture any script dialogs raised while running an action, so
+ * stored-XSS style scenarios can assert that nothing executed.
+ */
+export async function captureScriptDialogs(page) {
+  const dialogs = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
+  return dialogs;
+}
+
+export async function isProjectTabSelected(page, tabName) {
+  const tab = page.getByRole("button", { name: tabName, exact: true }).first();
+  if (!(await tab.isVisible().catch(() => false))) return false;
+  return /active|selected|bg-primary/i.test((await tab.getAttribute("class")) || "");
+}
+
+export async function selectProjectTab(page, tabName) {
+  const tab = page.getByRole("button", { name: tabName, exact: true }).first();
+  await expect(tab).toBeVisible({ timeout: 20000 });
+  await tab.dispatchEvent("click");
+  await expect.poll(() => isProjectTabSelected(page, tabName), { timeout: 10000 }).toBe(true);
+}
+
+/**
+ * Switch to a project-listing tab, scoped so the DISABLED sidebar
+ * "Projects" navigation button can never be matched.
+ *
+ * `selectProjectTab` above uses a plain role/name lookup and is left untouched
+ * because existing tests depend on it. This variant exists because the Viewer
+ * listing renders that sidebar control with the same accessible name, so a
+ * broad lookup can select a disabled element and time out.
+ */
+export async function selectListingTab(page, tabName) {
+  const tab = new CreateProjectPage(page).projectTab(tabName);
+  await expect(tab).toBeVisible({ timeout: 20000 });
+
+  // `dispatchEvent` rather than `click`, matching the existing
+  // `selectProjectTab` above. The listing's tab strip sits underneath a
+  // `position: fixed` header, so a real click is intercepted by that header
+  // ("subtree intercepts pointer events"). The tab is a plain button, so the
+  // synthetic click produces identical behaviour without the hit-test.
+  await tab.dispatchEvent("click");
+  await expect(tab).toHaveClass(/bg-primary/i, { timeout: 10000 });
+}
+
+export async function isProfileMenuVisible(page) {
+  return page.getByRole("menu").last().isVisible().catch(() => false);
+}
+
+export async function openProfileMenu(page) {
+  await page.getByRole("button", { name: /user profile menu/i }).click();
+  await expect(page.getByRole("menu").last()).toBeVisible();
+}
+
+/** The profile-menu trigger button, without opening the menu. */
+export function profileMenuTrigger(page) {
+  return page.getByRole("button", { name: /user profile menu/i });
+}
+
+export async function isProfileMenuTriggerVisible(page) {
+  try {
+    await expect(profileMenuTrigger(page)).toBeVisible({ timeout: 20000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The filter dropdown (Author / Tags) currently open on the listing.
+ */
+export function filterDropdown(page) {
+  return page.getByRole("menu").last();
+}
+
+export async function isFilterDropdownVisible(page) {
+  return filterDropdown(page).isVisible().catch(() => false);
+}
+
+export async function waitForFilterDropdownOpen(page) {
+  await expect(filterDropdown(page)).toBeVisible();
+}
+
+export async function waitForFilterDropdownClosed(page) {
+  await expect(filterDropdown(page)).toBeHidden();
+}
+
+/**
+ * Assert that none of the given patterns are exposed as nav links/buttons.
+ * Used to prove admin-only controls are absent for an End User session.
+ */
+export async function expectNoControlsMatching(page, patterns) {
+  for (const pattern of patterns) {
+    const name = new RegExp(pattern, "i");
+    await expect(page.getByRole("link", { name })).toHaveCount(0);
+    await expect(page.getByRole("button", { name })).toHaveCount(0);
+  }
+}
+
+/**
+ * Search the active listing for `name` and report whether the card is present.
+ *
+ * Uses the project's full name as the search term, so the result is
+ * pagination-independent. Polling (rather than a single `isVisible()`) is
+ * required: the listing renders asynchronously, and a one-shot snapshot taken
+ * right after `goto` reports "absent" for a project that is still loading,
+ * which would silently skip cleanup.
+ *
+ * The return value is deliberately THREE-STATE so that an unusable page is
+ * never mistaken for "project absent":
+ *   true  - the card was confirmed present
+ *   false - the listing rendered and the card was confirmed absent
+ *   null  - the listing never rendered, so presence is UNKNOWN
+ *
+ * A `null` result MUST be treated as a cleanup failure by callers; collapsing
+ * it to `false` would silently report a project as cleaned when it was never
+ * actually located.
+ */
+async function inspectActiveListing(page, name, timeout = 20000) {
+  const searchInput = page.getByPlaceholder(/search projects/i).first();
+  try {
+    await expect(searchInput).toBeVisible({ timeout });
+  } catch {
+    // The search box never appeared — the listing is unusable.
+    return null;
+  }
+  await searchInput.fill(name);
+
+  try {
+    await expect
+      .poll(async () => projectCard(page, name).isVisible().catch(() => false), {
+        timeout,
+        intervals: [500, 1000, 2000, 5000],
+        message: `Could not inspect the active listing while resolving project "${name}"`,
+      })
+      .toBe(true);
+    return true;
+  } catch {
+    // The card never became visible. Distinguish "rendered but absent" from
+    // "listing never rendered at all" by requiring the listing to have settled
+    // (cards present, or an explicit empty state).
+    const listingRendered = await listingHasSettled(page, timeout);
+    return listingRendered ? false : null;
+  }
+}
+
+/**
+ * Whether the project listing has rendered far enough to make an absence
+ * conclusion meaningful: either cards are present, or the app has explicitly
+ * shown its "no projects" empty state.
+ */
+async function listingHasSettled(page, timeout = 20000) {
+  try {
+    await expect
+      .poll(
+        async () =>
+          (await page.locator("article").count()) > 0 ||
+          (await page.getByText(/no projects found/i).count()) > 0,
+        { timeout, intervals: [500, 1000, 2000] }
+      )
+      .toBe(true);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify that a project is no longer visible in the *active* project listing.
+ *
+ * IMPORTANT SCOPE: this is active-list UI verification, NOT authoritative
+ * backend verification. The framework has no backend/API helper available, so
+ * the strongest evidence obtainable here is that the project stays absent
+ * across a fresh page load and a fresh search. Absence here does NOT prove the
+ * project was permanently deleted — the application is known to use
+ * archive/soft-delete with a retention period.
+ */
+async function verifyAbsentFromActiveListing(page, name) {
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const state = await inspectActiveListing(page, name);
+  if (state === null) {
+    throw new Error(
+      `Could not inspect the active listing to verify cleanup of "${name}" ` +
+        "(the project search box never became available)"
+    );
+  }
+  return state === false;
+}
+
+/**
+ * Remove projects created during a test from the account's active listing.
+ *
+ * Each tracked project is processed independently so one failure cannot strand
+ * the rest. A name is only removed from `createdProjectNames` once its own
+ * cleanup has been verified; unresolved names stay tracked (and are therefore
+ * retried by a later `afterEach`) and are reported as failures at the end.
+ *
+ * Outcomes recorded per project:
+ *  - "already-absent"  : not in the active listing before cleanup was attempted
+ *                        (cannot distinguish archived vs never-created)
+ *  - "cleaned"         : archive/delete action ran and the project is verified
+ *                        absent from the active listing afterwards
+ *  - "failed"          : the action or verification did not complete
+ *
+ * Cleanup failures THROW. They are never swallowed, so `afterEach` surfaces
+ * them and CI reports them instead of passing with a stranded project.
+ */
 export async function cleanupCreatedProjects(page, createdProjectNames) {
   if (createdProjectNames.size === 0) return;
-  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
-  for (const name of createdProjectNames) {
-    const projectCard = page.locator("article").filter({ hasText: name }).first();
-    if (!(await projectCard.isVisible({ timeout: 5000 }).catch(() => false))) continue;
-    const optionsButton = projectCard.getByRole("button", { name: /project options/i }).first();
-    await expect(optionsButton).toBeVisible({ timeout: 5000 });
-    await optionsButton.click();
-    const deleteAction = page
-      .getByRole("menuitem", { name: /delete/i })
-      .or(page.getByRole("button", { name: /delete/i }))
-      .last();
-    await expect(deleteAction).toBeVisible({ timeout: 5000 });
-    await deleteAction.click();
-    const confirmDelete = page
-      .getByRole("dialog")
-      .getByRole("button", { name: /delete|confirm/i })
-      .last();
-    if (await confirmDelete.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await confirmDelete.click();
+
+  const failures = [];
+  const alreadyAbsent = [];
+
+  for (const name of Array.from(createdProjectNames)) {
+    try {
+      await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+
+      const listingState = await inspectActiveListing(page, name);
+
+      if (listingState === null) {
+        // UNKNOWN — the listing never rendered. Do NOT untrack the name and do
+        // NOT report it as absent; keep it tracked so a later run retries it.
+        failures.push({
+          name,
+          reason: "the active listing could not be inspected (unknown state, not confirmed absent)",
+        });
+        continue;
+      }
+
+      if (listingState === false) {
+        // Confirmed absent from the active listing. This is still not proof of a
+        // permanent delete (the app uses archive/soft-delete), so it is reported
+        // rather than treated as a silent success.
+        alreadyAbsent.push(name);
+        createdProjectNames.delete(name);
+        continue;
+      }
+
+      await new ProjectPage(page).deleteOrArchiveProject(name, { confirm: true });
+
+      const stillAbsent = await verifyAbsentFromActiveListing(page, name);
+      if (!stillAbsent) {
+        failures.push({ name, reason: "project is still visible in the active listing after cleanup" });
+        continue;
+      }
+
+      createdProjectNames.delete(name);
+    } catch (error) {
+      failures.push({ name, reason: error?.message || String(error) });
     }
-    await expect(projectCard).not.toBeVisible({ timeout: 10000 });
   }
-  createdProjectNames.clear();
+
+  if (alreadyAbsent.length > 0) {
+    console.warn(
+      `[cleanupCreatedProjects] ${alreadyAbsent.length} tracked project(s) were already absent from the ` +
+        `active listing before cleanup (archive state could not be determined): ${alreadyAbsent.join(", ")}`
+    );
+  }
+
+  if (failures.length > 0) {
+    const detail = failures.map(({ name, reason }) => `  - ${name}: ${reason}`).join("\n");
+    throw new Error(
+      `Cleanup could not verify the following created project(s):\n${detail}\n` +
+        "These names remain tracked and will be retried by a later cleanup run."
+    );
+  }
+}
+
+// ============================================================
+// Role session helpers
+// ============================================================
+
+/**
+ * Open the project listing for whatever role session `page` carries, then
+ * perform a SINGLE hard refresh.
+ *
+ * The refresh is deliberate, not cosmetic: a role session injected via
+ * `addInitScript` only takes effect once the SPA has booted and consumed the
+ * OIDC entry, so asserting immediately after `goto` can observe the
+ * pre-hydration DOM. One reload guarantees the assertions run against a page
+ * that was rendered by the role's own session.
+ *
+ * Role-agnostic on purpose — any role fixture (default, admin, viewer) can use
+ * this, and the existing `beforeEach` blocks keep their own `goto` so their
+ * behaviour is unchanged.
+ */
+export async function openRoleListing(page, { refresh = true } = {}) {
+  // Role-gate state, set by the listener below.
+  //
+  // WHY THIS IS NECESSARY: the app renders role-gated chrome (for example the
+  // "Create Project" button) BEFORE the backend's role lookup completes, then
+  // removes it once the Viewer's `VIEWER` role is known. Sampling immediately
+  // after load can therefore observe a control a Viewer must never see,
+  // producing a false failure. Waiting for the role to settle makes assertions
+  // observe the real permission state instead of the loading state.
+  //
+  // The listener is armed BEFORE the first navigation so the request is not
+  // missed. Keep the resolved state across reloads that reuse the same session
+  // and therefore do not issue another role lookup.
+  if (!page.__roleListenerInstalled) {
+    page.__roleResolved = false;
+    page.on("response", (response) => {
+      if (/\/users\/login/i.test(response.url())) page.__roleResolved = true;
+    });
+    page.__roleListenerInstalled = true;
+  }
+
+  await page.goto(DEFAULT_BASE_URL, { waitUntil: "domcontentloaded" });
+
+  if (refresh) {
+    await page.reload({ waitUntil: "domcontentloaded" });
+  }
+
+  // Settle gate: wait for the listing to have rendered before any assertion
+  // runs, so callers never observe the pre-hydration DOM.
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.__CONFIG__?.isometricApiUrl)), {
+      timeout: 30000,
+      message: "Expected the Breeze.AI runtime config to load before asserting on the listing",
+    })
+    .toBe(true);
+
+  // Role-gated listing controls may not render until this lookup completes.
+  await expect
+    .poll(() => page.__roleResolved, {
+      timeout: 30000,
+      message: "Expected the Breeze.AI role lookup to complete before asserting on role-gated controls",
+    })
+    .toBe(true);
+
+  await getProjectListSearchInput(page);
+}
+
+/**
+ * Read the OIDC access token the SPA currently holds in sessionStorage.
+ *
+ * Returns null when no `oidc.user:*` entry is present (e.g. an unauthenticated
+ * context), so callers can assert on "no token" instead of crashing.
+ */
+export async function getSessionAccessToken(page) {
+  return page.evaluate(() => {
+    for (let i = 0; i < window.sessionStorage.length; i += 1) {
+      const key = window.sessionStorage.key(i);
+      if (key && key.startsWith("oidc.user:")) {
+        try {
+          return JSON.parse(window.sessionStorage.getItem(key))?.access_token || null;
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+}
+
+/**
+ * Force the injected OIDC session to look expired on the NEXT navigation.
+ *
+ * Must be called before `goto`, and relies on `addInitScript` ordering: the
+ * role fixture registers its injection first, so this script runs afterwards
+ * and overwrites the already-injected entry. Only `expires_at` is rewritten —
+ * the signature stays valid, so this exercises session-expiry handling rather
+ * than token tampering.
+ */
+export async function expireRoleSession(page) {
+  await page.addInitScript(() => {
+    try {
+      for (let i = 0; i < window.sessionStorage.length; i += 1) {
+        const key = window.sessionStorage.key(i);
+        if (key && key.startsWith("oidc.user:")) {
+          const entry = JSON.parse(window.sessionStorage.getItem(key));
+          entry.expires_at = Math.floor(Date.now() / 1000) - 3600;
+          window.sessionStorage.setItem(key, JSON.stringify(entry));
+        }
+      }
+    } catch {
+      /* non-fatal */
+    }
+  });
+}
+
+// ============================================================
+// Backend API helpers
+// ============================================================
+
+/**
+ * Fallback backend base URL, used only when the app does not expose
+ * `window.__CONFIG__` (for example an error page that never loaded config.js).
+ */
+export const FALLBACK_API_BASE_URL = "https://isometric-backend.accionbreeze.com";
+
+/**
+ * Resolve the backend API base URL from the app's own runtime config.
+ *
+ * IMPORTANT: the app origin does NOT serve the API. `https://ai.accionbreeze.com/api/*`
+ * returns the SPA HTML (GET) or an nginx 405 (POST/PUT/PATCH/DELETE). The real
+ * backend is published in `config.js` as `window.__CONFIG__.isometricApiUrl`, so
+ * the base URL is read from there instead of being hardcoded at call sites.
+ */
+export async function resolveApiBaseUrl(page) {
+  const configured = await page
+    .evaluate(() => window.__CONFIG__?.isometricApiUrl || null)
+    .catch(() => null);
+  return configured || FALLBACK_API_BASE_URL;
+}
+
+/**
+ * Call the Breeze.AI backend from inside the authenticated page context.
+ *
+ * Requests are issued via `page.evaluate` rather than Playwright's `request`
+ * fixture so they carry the app's real Origin — the backend's CORS policy only
+ * admits the application origin, and an out-of-context call would be rejected
+ * for reasons unrelated to the role under test.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ method?: string, path: string, token?: string|null, data?: unknown, readBody?: boolean }} options
+ * @param {boolean} [options.readBody=true] Set false for binary or attachment responses.
+ * @returns {Promise<{ status: number, ok: boolean, body: any }>}
+ */
+export async function apiRequest(page, { method = "GET", path, token = null, data, readBody = true } = {}) {
+  const baseUrl = await resolveApiBaseUrl(page);
+
+  return page.evaluate(
+    async ({ baseUrl, method, path, token, hasBody, body, readBody }) => {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers,
+        body: hasBody ? body : undefined,
+      });
+
+      const text = readBody ? await response.text() : null;
+      let parsed = text;
+      if (readBody) {
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          /* keep raw text when the response is not JSON */
+        }
+      }
+      return { status: response.status, ok: response.ok, body: parsed };
+    },
+    { baseUrl, method, path, token, hasBody: data !== undefined, body: JSON.stringify(data ?? null), readBody }
+  );
+}
+
+export async function waitForProjectAbsentFromApi(page, projectId, token, timeout = 60000) {
+  if (!projectId) {
+    throw new Error("Cannot verify project deletion without a project ID");
+  }
+  if (!token) {
+    throw new Error("Cannot verify project deletion without an authenticated access token");
+  }
+
+  const activeQuery = new URLSearchParams({
+    "filters[uuid][$eq]": projectId,
+    page: "1",
+    limit: "10",
+  });
+  const archivedQuery = new URLSearchParams({
+    "filters[uuid][$eq]": projectId,
+    page: "1",
+    limit: "10",
+    archived: "true",
+  });
+  let activeResponse;
+  let archivedResponse;
+
+  try {
+    await expect
+      .poll(
+        async () => {
+          [activeResponse, archivedResponse] = await Promise.all([
+            apiRequest(page, {
+              path: `/projects/accessible?${activeQuery}`,
+              token,
+            }),
+            apiRequest(page, {
+              path: `/projects/accessible?${archivedQuery}`,
+              token,
+            }),
+          ]);
+          if (activeResponse.status !== 200 || archivedResponse.status !== 200) {
+            throw new Error(
+              `Project deletion check returned HTTP ${activeResponse.status} (active) and ` +
+              `${archivedResponse.status} (archived)`
+            );
+          }
+          if (
+            !Array.isArray(activeResponse.body?.data) ||
+            !Array.isArray(archivedResponse.body?.data)
+          ) {
+            throw new Error("Project deletion check returned an invalid project listing");
+          }
+          const isAbsent = (projects) =>
+            projects.every((project) => (project.uuid || project.id) !== projectId);
+          return isAbsent(activeResponse.body.data) && isAbsent(archivedResponse.body.data);
+        },
+        {
+          timeout,
+          intervals: [500, 1000, 2000, 5000],
+          message: `Expected project ${projectId} to disappear from the API listing`,
+        }
+      )
+      .toBe(true);
+  } catch (error) {
+      const summarize = (response) =>
+        Array.isArray(response?.body?.data)
+          ? response.body.data
+            .filter((project) => (project.uuid || project.id) === projectId)
+            .map((project) => ({
+              uuid: project.uuid || null,
+            id: project.id || null,
+            archived: project.archived ?? project.isArchived ?? null,
+            deletedAt: project.deletedAt ?? null,
+            status: project.status ?? null,
+          }))
+        : [];
+    throw new Error(
+      `${error.message}\nMatching API records: ${JSON.stringify({
+        active: summarize(activeResponse),
+        archived: summarize(archivedResponse),
+      })}`
+    );
+  }
+
+  return { active: activeResponse, archived: archivedResponse };
+}
+
+export async function waitForProjectHardDeleteCompletion(page, projectId, token, timeout = 180000) {
+  if (!projectId) {
+    throw new Error("Cannot verify hard deletion without a project ID");
+  }
+  if (!token) {
+    throw new Error("Cannot verify hard deletion without an authenticated access token");
+  }
+
+  let lastResult = null;
+  try {
+    await expect
+      .poll(
+        async () => {
+          lastResult = await apiRequest(page, {
+            path: `/projects/${encodeURIComponent(projectId)}/hard-delete-status`,
+            token,
+          });
+          if (lastResult.status !== 200) {
+            throw new Error(
+              `Hard-delete status API returned HTTP ${lastResult.status}: ${JSON.stringify(lastResult.body)}`
+            );
+          }
+          if (lastResult.body?.projectUuid !== projectId) {
+            throw new Error(
+              `Hard-delete status UUID mismatch: expected ${projectId}, got ${lastResult.body?.projectUuid || "none"}`
+            );
+          }
+          const state = String(lastResult.body?.jobState || "").toLowerCase();
+          if (["failed", "error", "cancelled"].includes(state)) {
+            throw new Error(
+              `Hard-delete job ${state}: ${lastResult.body?.failureReason || JSON.stringify(lastResult.body)}`
+            );
+          }
+          return state;
+        },
+        {
+          timeout,
+          intervals: [500, 1000, 2000, 5000],
+          message: `Expected hard-delete job for ${projectId} to complete`,
+        }
+      )
+      .toBe("completed");
+  } catch (error) {
+    const finalResult = await apiRequest(page, {
+      path: `/projects/${encodeURIComponent(projectId)}/hard-delete-status`,
+      token,
+    }).catch((statusError) => {
+      throw new Error(`${error.message}\nFinal hard-delete status request failed: ${statusError.message}`);
+    });
+    if (
+      finalResult.status === 200 &&
+      finalResult.body?.projectUuid === projectId &&
+      String(finalResult.body?.jobState || "").toLowerCase() === "completed"
+    ) {
+      lastResult = finalResult;
+    } else {
+      throw new Error(
+        `${error.message}\nFinal hard-delete status: ${JSON.stringify(finalResult.body ?? null)}`
+      );
+    }
+  }
+
+  if (String(lastResult.body?.jobState || "").toLowerCase() !== "completed") {
+    throw new Error(
+      `Hard-delete job for ${projectId} did not complete: ${JSON.stringify(lastResult?.body ?? null)}`
+    );
+  }
+
+  if (!lastResult.body.completedSteps?.includes("Project record")) {
+    throw new Error(
+      `Hard-delete job for ${projectId} completed without confirming Project record removal: ` +
+      JSON.stringify(lastResult.body)
+    );
+  }
+  if (lastResult.body.counts?.project !== 1) {
+    throw new Error(
+      `Hard-delete job for ${projectId} reported an unexpected project removal count: ` +
+      JSON.stringify(lastResult.body.counts)
+    );
+  }
+  return lastResult.body;
+}
+
+// ============================================================
+// Generic project-listing / project-card helpers
+// ============================================================
+
+/**
+ * The text of the project listing's empty state (e.g. "No projects found." or
+ * "No favourites yet"). Returns "" when cards are rendered instead.
+ */
+export async function getListingEmptyStateText(page) {
+  const emptyState = page
+    .getByText(/no projects found|no favourites yet|no results found|no authors available|no tags available/i)
+    .first();
+  if (!(await emptyState.isVisible().catch(() => false))) return "";
+  return (await emptyState.innerText()).trim();
+}
+
+/**
+ * Every interactive control rendered inside a project card, as
+ * `{ text, ariaLabel, title }` triples. Used to assert which actions a role is
+ * offered without coupling the test to a specific control's position.
+ */
+export async function readProjectCardControlNames(card) {
+  if (!card) return [];
+  return card.evaluate((element) =>
+    [...element.querySelectorAll("button, a, [role='button'], [role='menuitem']")]
+      .map((el) => ({
+        text: (el.innerText || "").trim(),
+        ariaLabel: el.getAttribute("aria-label") || "",
+        title: el.getAttribute("title") || "",
+      }))
+      .filter((control) => control.text || control.ariaLabel || control.title)
+  );
+}
+
+/** The ⋮ project-options trigger on a specific project card, if rendered. */
+export function projectOptionsMenuTrigger(card) {
+  return card
+    .getByRole("button", { name: /project options/i })
+    .or(card.locator('button[aria-label*="options" i], button[title*="options" i]'))
+    .first();
+}
+
+/** The favourite star on a specific project card, if rendered. */
+export function projectFavouriteTrigger(card) {
+  return card
+    .locator(
+      'button[aria-label*="favourite" i], button[aria-label*="favorite" i], ' +
+        'button[title*="favourite" i], button[title*="favorite" i], ' +
+        '[data-testid*="favourite" i], [data-testid*="favorite" i]'
+    )
+    .first();
+}
+
+/** Whether the ⋮ options trigger is offered on a given project card. */
+export async function isProjectOptionsMenuAvailable(card) {
+  return projectOptionsMenuTrigger(card).isVisible().catch(() => false);
+}
+
+/** Whether a favourite star is offered on a given project card. */
+export async function isProjectFavouriteAvailable(card) {
+  return projectFavouriteTrigger(card).isVisible().catch(() => false);
 }
 
 export async function ensureProjectCreated(page, projectState) {
@@ -81,7 +830,7 @@ export async function ensureProjectOpen(page, projectState) {
   if (page.url().includes(`/dashboard/${projectState.projectId}`)) {
     return projectState.projectId;
   }
-  // Navigate directly — avoids card-click timing issues in React SPA
+  // Navigate directly â€” avoids card-click timing issues in React SPA
   const base = (process.env.TARGET_URL || "https://ai.accionbreeze.com/").replace(/\/$/, "");
   await page.goto(`${base}/dashboard/${projectState.projectId}`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(2000);
