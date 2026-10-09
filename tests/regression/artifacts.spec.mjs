@@ -1,17 +1,25 @@
-import { test, expect } from "../auth.fixture.mjs";
+import { test } from "../auth.fixture.mjs";
 import fs from "fs";
+import { expect } from '@playwright/test';
+
 import {
   downloadArtifactPlainHtml,
   reviewArtifactsPage,
   validateCopyPlainHtmlContent,
   downloadArtifactPlainMarkdown,
+  downloadPlainHtmlFromArtifactPreview,
+  downloadPlainMarkdownFromArtifactPreview,
   validateDownloadedPlainHtml,
   validateDownloadedPlainMarkdown,
   validatePlainMarkdownInNewWindow,
   validatePlainHtmlInNewWindow,
   validateCopyPlainMarkdownContent,
-  validateMultipleRecordsVisible,
   searchAndValidateRecord,
+  validateDownloadedHtmlFromPreviewPage,
+  validateDownloadedMarkdownFromPreviewPage,
+  deleteLatestArtifactRecord,
+  attemptDeleteArtifactRecordButCancel,  
+
 } from "../../Pages/artifactsPage.js";
 import { DEFAULT_BASE_URL } from "../../Pages/dashboardPage.js";
 import { ensureOnboardingPage } from "../../Pages/knowlegeBase.js";
@@ -39,6 +47,7 @@ test.describe("Regression - Artifacts", () => {
 
   let projectName = "";
   let projectId = "";
+  let lastFoundRecordsCount = 0;
   let sharedContext = null;
   let sharedPage = null;
 
@@ -72,31 +81,8 @@ test.describe("Regression - Artifacts", () => {
     projectId = projectState.projectId;
     createdProjectNames.add(projectName);
 
+    // Navigating to the shared page of artifacts before running any tests
     await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
-    await expect(sharedPage.getByRole("heading", { name: "Artifacts", exact: true })).toBeVisible({ timeout: 15000 });
-
-    // Wait until at least 1 artifact row exists — confirms persona generation has propagated
-    await expect.poll(
-      async () => {
-        const count = await sharedPage
-          .getByRole("row")
-          .filter({ hasText: /Functional/i })
-          .count()
-          .catch(() => 0);
-        if (count === 0) {
-          await sharedPage.reload({ waitUntil: "domcontentloaded" });
-          await sharedPage.waitForTimeout(3000);
-        }
-        return count;
-      },
-      {
-        timeout: 120000,
-        intervals: [5000, 10000, 15000],
-        message: "Expected at least 1 artifact row (persona not yet generated)",
-      }
-    ).toBeGreaterThan(0);
-
-    console.log("[artifacts.beforeAll] Project ready — artifact rows confirmed");
   });
 
   // No fixture needed — sharedPage is already authenticated and open
@@ -108,44 +94,65 @@ test.describe("Regression - Artifacts", () => {
     }
   });
 
-  // Each test navigates the shared page to the artifacts URL before running
   test("@regression @artifact @downloadartifact download artifact plain html from the artifacts page", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
     await reviewArtifactsPage(sharedPage, projectId);
-    await downloadArtifactPlainHtml(sharedPage, projectId);
-    await validateCopyPlainHtmlContent(sharedPage, projectName, projectId);
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainHtml(sharedPage, projectName);
+    await validateCopyPlainHtmlContent(sharedPage, projectName, projectId);
     await validatePlainHtmlInNewWindow(sharedPage, projectName);
     console.log(`[PASS] download artifact plain html`);
   });
 
   test("@regression @artifact @downloadartifact download artifact plain markdown from the artifacts page", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
-    await downloadArtifactPlainMarkdown(sharedPage, projectId);
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainMarkdown(sharedPage, projectName);
     await validateCopyPlainMarkdownContent(sharedPage, projectName, projectId);
     await validatePlainMarkdownInNewWindow(sharedPage, projectName);
     console.log(`[PASS] download artifact plain markdown`);
   });
 
-  test("@regression @artifact download artifact when already one artifact exists", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
-    await downloadArtifactPlainHtml(sharedPage, projectId);
+  test("@regression @artifact download artifact when already one or more artifact exists", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainHtml(sharedPage, projectName);
-    await downloadArtifactPlainMarkdown(sharedPage, projectId);
-    await validateMultipleRecordsVisible(sharedPage);
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainMarkdown(sharedPage, projectName);
-    console.log(`[PASS] download artifact when already one exists`);
+    console.log(`[PASS] download artifact when already one or more exists`);
   });
 
   test("@regression @artifact validate search functionality on artifacts page", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
-    await downloadArtifactPlainMarkdown(sharedPage, projectId);
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainMarkdown(sharedPage, projectName);
-    await downloadArtifactPlainHtml(sharedPage, projectId);
-    await validateMultipleRecordsVisible(sharedPage);
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainHtml(sharedPage, projectName);
     await searchAndValidateRecord(sharedPage);
     console.log(`[PASS] validate search functionality`);
+  });
+
+  test("@regression @artifact download plain HTML from the side preview", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
+    const download = await downloadPlainHtmlFromArtifactPreview(sharedPage, projectName);
+    console.log("[HTML preview] Waiting for the browser download before validating the file");
+    await validateDownloadedHtmlFromPreviewPage(download, projectName);
+    console.log("[HTML preview] File validation complete");
+  });
+
+  test("@regression @artifact download plain Markdown from the side preview", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
+    const download = await downloadPlainMarkdownFromArtifactPreview(sharedPage, projectName);
+    console.log("[Markdown preview] Waiting for the browser download before validating the file");
+    await validateDownloadedMarkdownFromPreviewPage(download, projectName);
+    console.log("[Markdown preview] File validation complete");
+  });
+
+  test("@regression @artifact download the functional artifact record and delete it", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
+    const currentRecordCount = await attemptDeleteArtifactRecordButCancel(sharedPage);
+    expect(currentRecordCount, "Record count should remain the same after canceling deletion").toBe(lastFoundRecordsCount);
+    lastFoundRecordsCount = await deleteLatestArtifactRecord(sharedPage, lastFoundRecordsCount);
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
+    const currentRecordCount2 = await attemptDeleteArtifactRecordButCancel(sharedPage);
+    expect(currentRecordCount2, "Record count should remain the same after canceling deletion").toBe(lastFoundRecordsCount);
+    lastFoundRecordsCount = await deleteLatestArtifactRecord(sharedPage, lastFoundRecordsCount);
+    console.log("record deletion successfully verified");
   });
 });

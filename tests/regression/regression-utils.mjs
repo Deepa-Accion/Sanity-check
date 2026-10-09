@@ -89,7 +89,6 @@ export async function ensureProjectOpen(page, projectState) {
 }
 
 export async function prepareFunctionalMetrics(page, projectState) {
-  //await ensureProjectOpen(page, projectState);
   console.log(`Selected project: ${projectState.projectName}`);
   console.log("Step 1: Uploading document...");
   await uploadFirstpdfDocument(page);
