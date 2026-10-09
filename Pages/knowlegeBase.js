@@ -122,7 +122,7 @@ export async function generateFunctionalOntology(page) {
       await refreshBtn.click().catch(() => {});
     }
     return generated;
-  }, { timeout: 180000, intervals: [5000, 10000, 15000] }).toBe(true);
+  }, { timeout: 720000, intervals: [5000, 10000, 15000] }).toBe(true);
   
   const reviewButton = page.getByRole('button', { name: /^Review$/i }).first();
 

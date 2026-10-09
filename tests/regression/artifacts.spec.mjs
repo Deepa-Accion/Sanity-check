@@ -1,16 +1,25 @@
-import { test, expect } from "../auth.fixture.mjs";
+import { test } from "../auth.fixture.mjs";
 import fs from "fs";
+import { expect } from '@playwright/test';
+
 import {
   downloadArtifactPlainHtml,
   reviewArtifactsPage,
   validateCopyPlainHtmlContent,
   downloadArtifactPlainMarkdown,
+  downloadPlainHtmlFromArtifactPreview,
+  downloadPlainMarkdownFromArtifactPreview,
   validateDownloadedPlainHtml,
   validateDownloadedPlainMarkdown,
   validatePlainMarkdownInNewWindow,
   validatePlainHtmlInNewWindow,
   validateCopyPlainMarkdownContent,
   searchAndValidateRecord,
+  validateDownloadedHtmlFromPreviewPage,
+  validateDownloadedMarkdownFromPreviewPage,
+  deleteLatestArtifactRecord,
+  attemptDeleteArtifactRecordButCancel,  
+
 } from "../../Pages/artifactsPage.js";
 import { DEFAULT_BASE_URL } from "../../Pages/dashboardPage.js";
 import { ensureOnboardingPage } from "../../Pages/knowlegeBase.js";
@@ -71,7 +80,9 @@ test.describe("Regression - Artifacts", () => {
     projectName = projectState.projectName;
     projectId = projectState.projectId;
     createdProjectNames.add(projectName);
-    
+
+    // Navigating to the shared page of artifacts before running any tests
+    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
   });
 
   // No fixture needed — sharedPage is already authenticated and open
@@ -83,19 +94,16 @@ test.describe("Regression - Artifacts", () => {
     }
   });
 
-  // Each test navigates the shared page to the artifacts URL before running
   test("@regression @artifact @downloadartifact download artifact plain html from the artifacts page", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
     await reviewArtifactsPage(sharedPage, projectId);
     lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
-    await validateCopyPlainHtmlContent(sharedPage, projectName, projectId);
     await validateDownloadedPlainHtml(sharedPage, projectName);
+    await validateCopyPlainHtmlContent(sharedPage, projectName, projectId);
     await validatePlainHtmlInNewWindow(sharedPage, projectName);
     console.log(`[PASS] download artifact plain html`);
   });
 
   test("@regression @artifact @downloadartifact download artifact plain markdown from the artifacts page", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
     lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainMarkdown(sharedPage, projectName);
     await validateCopyPlainMarkdownContent(sharedPage, projectName, projectId);
@@ -104,7 +112,6 @@ test.describe("Regression - Artifacts", () => {
   });
 
   test("@regression @artifact download artifact when already one or more artifact exists", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
     lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainHtml(sharedPage, projectName);
     lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
@@ -113,12 +120,39 @@ test.describe("Regression - Artifacts", () => {
   });
 
   test("@regression @artifact validate search functionality on artifacts page", async () => {
-    await sharedPage.goto(`${DEFAULT_BASE_URL}knowledge/${projectId}`, { waitUntil: "domcontentloaded" });
     lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainMarkdown(sharedPage, projectName);
     lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
     await validateDownloadedPlainHtml(sharedPage, projectName);
     await searchAndValidateRecord(sharedPage);
     console.log(`[PASS] validate search functionality`);
+  });
+
+  test("@regression @artifact download plain HTML from the side preview", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
+    const download = await downloadPlainHtmlFromArtifactPreview(sharedPage, projectName);
+    console.log("[HTML preview] Waiting for the browser download before validating the file");
+    await validateDownloadedHtmlFromPreviewPage(download, projectName);
+    console.log("[HTML preview] File validation complete");
+  });
+
+  test("@regression @artifact download plain Markdown from the side preview", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
+    const download = await downloadPlainMarkdownFromArtifactPreview(sharedPage, projectName);
+    console.log("[Markdown preview] Waiting for the browser download before validating the file");
+    await validateDownloadedMarkdownFromPreviewPage(download, projectName);
+    console.log("[Markdown preview] File validation complete");
+  });
+
+  test("@regression @artifact download the functional artifact record and delete it", async () => {
+    lastFoundRecordsCount = await downloadArtifactPlainHtml(sharedPage, projectId, lastFoundRecordsCount);
+    const currentRecordCount = await attemptDeleteArtifactRecordButCancel(sharedPage);
+    expect(currentRecordCount, "Record count should remain the same after canceling deletion").toBe(lastFoundRecordsCount);
+    lastFoundRecordsCount = await deleteLatestArtifactRecord(sharedPage, lastFoundRecordsCount);
+    lastFoundRecordsCount = await downloadArtifactPlainMarkdown(sharedPage, projectId, lastFoundRecordsCount);
+    const currentRecordCount2 = await attemptDeleteArtifactRecordButCancel(sharedPage);
+    expect(currentRecordCount2, "Record count should remain the same after canceling deletion").toBe(lastFoundRecordsCount);
+    lastFoundRecordsCount = await deleteLatestArtifactRecord(sharedPage, lastFoundRecordsCount);
+    console.log("record deletion successfully verified");
   });
 });
