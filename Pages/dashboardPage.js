@@ -417,11 +417,16 @@ export class DashboardPage {
   }
 
   async openProjectTab(tabName) {
-    const tab = this.page.getByRole('button', { name: tabName, exact: true }).first();
+    // Dashboard tabs are rendered with role="tab" (aria-selected); keep the button fallback.
+    const tab = this.page.getByRole('tab', { name: tabName, exact: true })
+      .or(this.page.getByRole('button', { name: tabName, exact: true }))
+      .first();
     await expect(tab).toBeVisible({ timeout: 20000 });
     await tab.scrollIntoViewIfNeeded();
     await tab.click({ force: true });
-    const isActive = async () => /bg-primary|active|selected/i.test(await tab.getAttribute('class') || '');
+    const isActive = async () =>
+      (await tab.getAttribute('aria-selected')) === 'true' ||
+      /bg-primary|active|selected/i.test(await tab.getAttribute('class') || '');
     if (!(await isActive())) {
       await tab.evaluate((element) => element.click());
     }
@@ -473,6 +478,26 @@ export class DashboardPage {
     await confirmation.getByRole('button', { name: /confirm/i }).click();
     await expect(card).not.toBeVisible({ timeout: 20000 });
     return true;
+  }
+
+  /**
+   * Permanently delete an ARCHIVED project (Archived tab -> trash icon -> "Delete Permanently").
+   * The backend runs a long background job, so this asserts the request was accepted (202) and the
+   * card switches to its "Deleting..." progress state instead of waiting for the job to finish.
+   */
+  async permanentlyDeleteProject(projectName) {
+    const card = this.projectCard(projectName);
+    await expect(card).toBeVisible({ timeout: 20000 });
+    await card.getByRole('button').nth(1).click(); // icon-only trash button, next to "Restore"
+    await expect(card).toContainText(/Permanently delete .* and all its data\? This cannot be undone\./);
+    const deleteResponse = this.page.waitForResponse(
+      (r) => r.request().method() === 'DELETE' && /\/projects\/[^/]+\/hard$/.test(new URL(r.url()).pathname),
+      { timeout: 30000 }
+    );
+    await card.getByRole('button', { name: 'Delete Permanently' }).click();
+    const response = await deleteResponse;
+    expect(response.status(), 'Permanent delete should be accepted (202)').toBe(202);
+    await expect(card).toContainText(/Deleting/, { timeout: 30000 });
   }
 
   async isProjectFavourited() {
