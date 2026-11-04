@@ -479,3 +479,141 @@ export async function uploadAndGenerateCodeOntology(page, projectId, ontologyNam
     console.log('[codeOntology] No Generate button found — upload may be sufficient');
   }
 }
+
+// ---------------------------------------------------------------------------
+// Current project dashboard (verified against Dev): header, "Ask Breeze" box,
+// "Connect AI tools" dialog and the Explore section. The legacy card helpers above
+// (openAllCards, aiChatAssistant, ...) target an older layout.
+// ---------------------------------------------------------------------------
+
+/** Assert the project dashboard has rendered its main sections. */
+export async function expectProjectDashboardLoaded(page, projectName) {
+  await expect(page.getByRole("heading", { level: 1, name: projectName }), "Project title").toBeVisible({ timeout: 30000 });
+  for (const name of ["Graph visualizer", "Connect AI tools", "Project settings", "Ask Breeze"]) {
+    await expect(page.getByRole("button", { name }).first(), `"${name}" button`).toBeVisible();
+  }
+  await expect(page.getByPlaceholder(/Ask about this project/i)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Explore" }), "Explore section").toBeVisible();
+  await expect(page.getByRole("tab", { name: /^Ontologies/ })).toBeVisible();
+}
+
+/**
+ * Open "Connect AI tools" > "MCP only" and return the MCP server URL the app advertises.
+ * Closes the dialog afterwards.
+ */
+export async function getAdvertisedMcpUrl(page) {
+  await page.getByRole("button", { name: "Connect AI tools" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: /Connect your AI coding tool/i })).toBeVisible();
+  await dialog.getByRole("tab", { name: "MCP only" }).click();
+  const command = dialog.getByText(/claude mcp add --transport http breeze-mcp https?:\/\/\S+/).first();
+  await expect(command, "MCP setup command should be shown").toBeVisible();
+  const url = (await command.innerText()).match(/https?:\/\/\S+/)?.[0];
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toBeHidden();
+  return url;
+}
+
+/**
+ * Ask the project's "Ask Breeze" agent a question and wait until it finishes answering.
+ * @returns {Promise<string>} the visible page text after the answer completed
+ */
+export async function askBreeze(page, question, { timeout = 180000 } = {}) {
+  await page.getByPlaceholder(/Ask about this project/i).fill(question);
+  await page.getByRole("button", { name: "Ask Breeze" }).click();
+  await expect(page, "Asking should open a chat thread").toHaveURL(/\/chat\/[0-9a-f-]{36}\/t\/[0-9a-f-]{36}/i, { timeout: 30000 });
+  await expect(page.getByText(question).first()).toBeVisible();
+  await expect(page.getByText("Breeze.AI processing"), "Agent should finish processing").toBeHidden({ timeout });
+  await expect(page.getByRole("button", { name: /Stop generating/i })).toBeHidden({ timeout });
+  return page.locator("main").innerText().catch(() => page.locator("body").innerText());
+}
+
+// ---------------------------------------------------------------------------
+// Code Ontology cards (verified on Dev): each ontology is a card with an <h3> name,
+// a "Status: <state>" line and Files / Functions / Classes / Lines of Code counts.
+// (waitForOntologyStatus above matches the outermost page <div>, so it is unreliable.)
+// ---------------------------------------------------------------------------
+
+export function codeOntologyCard(page, ontologyName) {
+  return page
+    .locator("div")
+    .filter({ has: page.getByRole("heading", { level: 3, name: ontologyName, exact: true }) })
+    .filter({ hasText: /Status:/ })
+    .last();
+}
+
+/** Read a numeric stat ("Files", "Functions", "Classes", "Lines of Code") from an ontology card. */
+export async function getCodeOntologyStat(page, ontologyName, label) {
+  const text = (await codeOntologyCard(page, ontologyName).innerText()).replace(/\s+/g, " ");
+  const match = text.match(new RegExp(`${label}\\s+([\\d,]+)`));
+  return match ? Number(match[1].replace(/,/g, "")) : null;
+}
+
+/**
+ * Wait until the ontology's status is "Active" (embeddings finished). Fails fast on a
+ * failed state. Reloads periodically because the list does not always live-update.
+ */
+export async function waitForCodeOntologyActive(page, ontologyName, { timeout = 240000 } = {}) {
+  const card = codeOntologyCard(page, ontologyName);
+  await expect(card, `Ontology "${ontologyName}" card should be listed`).toBeVisible({ timeout: 30000 });
+  let polls = 0;
+  await expect
+    .poll(
+      async () => {
+        const status = (await card.innerText()).replace(/\s+/g, " ").match(/Status:\s*(.*?)\s*(?:Time in the current status|Retry|Files|\d+s|$)/)?.[1] ?? "";
+        if (/fail|error/i.test(status)) throw new Error(`Ontology "${ontologyName}" ended in status "${status}"`);
+        if (!/active/i.test(status) && ++polls % 6 === 0) {
+          await page.reload({ waitUntil: "domcontentloaded" });
+        }
+        return status;
+      },
+      { timeout, intervals: [5000], message: `Ontology "${ontologyName}" never became Active` }
+    )
+    .toMatch(/active/i);
+}
+
+
+/** Open the Graph visualizer from the project dashboard (enabled once an ontology exists). */
+export async function openGraphVisualizer(page) {
+  const button = page.getByRole("button", { name: "Graph visualizer", exact: true });
+  await expect(button, "Graph visualizer is only enabled once an ontology exists").toBeEnabled({ timeout: 30000 });
+  await button.click();
+  await expect(page, "Should navigate away from the project dashboard").not.toHaveURL(/\/dashboard\//, { timeout: 30000 });
+  await expect(page.getByText(/connected/i).first(), "Graph visualizer should report a connection").toBeVisible({ timeout: 60000 });
+}
+
+/** Code Ontology card menu -> Re-generate Embeddings (confirm) -> back to Active. */
+export async function regenerateCodeOntologyEmbeddings(page, ontologyName) {
+  const card = codeOntologyCard(page, ontologyName);
+  await card.getByRole("button", { name: "More options" }).click();
+  await page.getByText("Re-generate Embeddings", { exact: true }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText(/Re-generate Embeddings\?/);
+  const accepted = page.waitForResponse(
+    (r) => r.request().method() === "POST" && /regenerate-embeddings/.test(r.url()),
+    { timeout: 30000 }
+  );
+  await confirm.getByRole("button", { name: "Re-generate" }).click();
+  expect((await accepted).status(), "Re-generate embeddings should be accepted (202)").toBe(202);
+  await waitForCodeOntologyActive(page, ontologyName);
+}
+
+/**
+ * New Ontology -> Git Integration: with an empty form, or an invalid repository URL,
+ * "Test Connection" and "Save" must stay disabled. Closes the form afterwards.
+ */
+export async function expectGitFormBlocksInvalidInput(page) {
+  await page.getByRole("button", { name: /New Ontology/ }).click();
+  await page.getByRole("tab", { name: "Git Integration" }).click();
+  const testConnection = page.getByRole("button", { name: "Test Connection" });
+  const save = page.getByRole("button", { name: "Save", exact: true });
+  await expect(testConnection, "Test Connection with empty form").toBeDisabled();
+  await expect(save, "Save with empty form").toBeDisabled();
+
+  await page.getByPlaceholder("e.g. Backend API, Frontend App").fill("Invalid Git Form Check");
+  await page.getByPlaceholder("https://github.com/org/repo").fill("not-a-url");
+  await page.getByPlaceholder("ghp_xxxxxxxxxxxx").fill("x");
+  await expect(testConnection, "Test Connection with an invalid URL").toBeDisabled();
+  await expect(save, "Save with an invalid URL").toBeDisabled();
+  await page.getByRole("button", { name: "Cancel" }).click();
+}

@@ -190,8 +190,18 @@ export async function searchAndValidateRecord(page) {
   return true;
 }
 
-export async function validateDownloadedPlainMarkdown(page, projectName) {
-  const { viewButton, overlayCloseButton } = artifactLocators(page);
+/**
+ * @param {number} [rowIndex=0] which "Functional Documentation" row to open. Rows are listed
+ *   NEWEST-first and share the same name, so 0 is the most recently generated artifact (after the
+ *   list has refreshed to include it).
+ */
+export async function validateDownloadedPlainMarkdown(page, projectName, rowIndex = 0) {
+  const { overlayCloseButton } = artifactLocators(page);
+  const viewButton = page
+    .getByRole("row")
+    .filter({ hasText: "Functional Documentation" })
+    .nth(rowIndex)
+    .getByRole("button", { name: "View", exact: true });
   const expectedTitle = `${projectName}`;
 
   await expect(viewButton).toBeVisible({ timeout: 10000 });
