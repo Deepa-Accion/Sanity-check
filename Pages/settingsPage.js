@@ -118,10 +118,21 @@ export class SettingsPage {
     await expect(confirm).toContainText(/Overwrite this project's data\?/);
     await confirm.getByRole('button', { name: 'Wipe and import' }).click();
 
-    await expect(
-      dialog.getByText('Import completed'),
-      'Import should finish with "Import completed" (an "Import failed" message means the user lacks permission or the bundle is invalid)'
-    ).toBeVisible({ timeout });
+    // Wait for either outcome so a failure (e.g. HTTP 403) is reported at once, with the app's message,
+    // instead of timing out. The failure text is rendered outside the dialog element.
+    const completed = dialog.getByText('Import completed');
+    const failed = this.page.getByText(/Import failed/).first();
+    await expect
+      .poll(async () => ((await completed.isVisible()) ? 'completed' : (await failed.isVisible()) ? 'failed' : 'pending'), {
+        timeout,
+        intervals: [1000, 2000, 5000],
+        message: 'Import should finish with "Import completed"',
+      })
+      .not.toBe('pending');
+    if (await failed.isVisible()) {
+      const detail = (await this.page.locator('body').innerText()).match(/Import failed[^\n]*\n?[^\n]*/)?.[0]?.replace(/\s+/g, ' ');
+      throw new Error(`Import failed: ${detail}`);
+    }
     await dialog.getByRole('button', { name: 'Close' }).first().click();
     await expect(dialog).toBeHidden();
   }

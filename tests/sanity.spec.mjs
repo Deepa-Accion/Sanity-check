@@ -44,6 +44,8 @@ import {
 } from "../Pages/artifactsPage.js";
 import { SettingsPage } from "../Pages/settingsPage.js";
 import { trackApiBase, apiGet } from "../Pages/apiClient.js";
+import { archiveProjectsAsAdmin } from "../Pages/adminCleanup.js";
+import { registerPermissionMatrix } from "./permissions-matrix.mjs";
 import { withErrorCapture, checkAndRecoverFromAppError } from "./test-utils.mjs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -114,29 +116,10 @@ test.describe("Sanity Suite", () => {
     await collectPageData(page, "dashboard");
   });
 
-  // Safety net: a failed serial test skips the later ones (incl. delete), so archive anything
-  // this run created. Uses the Admin session captured by global-setup.
+  // Safety net: a failed serial test skips the later ones (incl. delete), so archive anything this
+  // run created, using the Admin session captured by global-setup.
   test.afterAll(async ({ browser }) => {
-    if (createdProjects.size === 0) return;
-    let session;
-    try {
-      session = JSON.parse(fs.readFileSync(new URL("../session-auth-admin.json", import.meta.url), "utf-8"));
-    } catch {
-      console.warn("[cleanup] session-auth-admin.json missing - leftover projects:", [...createdProjects]);
-      return;
-    }
-    const context = await browser.newContext();
-    const adminPage = await context.newPage();
-    try {
-      await adminPage.addInitScript(({ key, value }) => {
-        window.sessionStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
-      }, session);
-      await archiveCreatedProjects(adminPage);
-    } catch (err) {
-      console.warn("[cleanup] could not archive leftover projects:", [...createdProjects], err?.message);
-    } finally {
-      await context.close();
-    }
+    await archiveProjectsAsAdmin(browser, createdProjects);
   });
 
   // ── Login / dashboard ──────────────────────────────────────────────────────
@@ -587,3 +570,6 @@ test.describe("Sanity Suite", () => {
     }
   });
 });
+
+// Roles and Permissions Matrix checks (one test per matrix cell) - see tests/permissions-matrix.mjs
+registerPermissionMatrix();
