@@ -40,13 +40,17 @@ export class ProjectPage {
         const action = menu.getByRole("menuitem", { name: /^(delete|archive)$/i }).first();
 
         await expect(action).toBeVisible({ timeout: 10000 });
-        await action.click({ force: true });
-        await expect(dialog).toBeVisible({ timeout: 5000 });
+        // Normal click (waits for the menu item to stop animating); a forced click can land too early
+        // and be swallowed. The confirm dialog can be slow on a loaded Dev server, so wait longer
+        // before deciding the click was lost and retrying.
+        await action.click();
+        await expect(dialog).toBeVisible({ timeout: 20000 });
         dialogVisible = true;
       } catch (error) {
         lastError = error;
         if (attempt < 2) {
           await this.page.keyboard.press('Escape').catch(() => {});
+          await this.page.waitForTimeout(1000);
         }
       }
     }
@@ -487,11 +491,15 @@ export async function uploadAndGenerateCodeOntology(page, projectId, ontologyNam
 // ---------------------------------------------------------------------------
 
 /** Assert the project dashboard has rendered its main sections. */
-export async function expectProjectDashboardLoaded(page, projectName) {
+export async function expectProjectDashboardLoaded(page, projectName, { projectSettings = true } = {}) {
   await expect(page.getByRole("heading", { level: 1, name: projectName }), "Project title").toBeVisible({ timeout: 30000 });
-  for (const name of ["Graph visualizer", "Connect AI tools", "Project settings", "Ask Breeze"]) {
+  for (const name of ["Graph visualizer", "Connect AI tools", "Ask Breeze"]) {
     await expect(page.getByRole("button", { name }).first(), `"${name}" button`).toBeVisible();
   }
+  // "Project settings" is only offered to roles that may edit the project (a Viewer does not get it).
+  const settingsButton = page.getByRole("button", { name: "Project settings", exact: true });
+  if (projectSettings) await expect(settingsButton, '"Project settings" button').toBeVisible();
+  else await expect(settingsButton, 'A read-only role must not get "Project settings"').toBeHidden();
   await expect(page.getByPlaceholder(/Ask about this project/i)).toBeVisible();
   await expect(page.getByRole("region", { name: "Explore" }), "Explore section").toBeVisible();
   await expect(page.getByRole("tab", { name: /^Ontologies/ })).toBeVisible();
@@ -560,7 +568,9 @@ export async function waitForCodeOntologyActive(page, ontologyName, { timeout = 
   await expect
     .poll(
       async () => {
-        const status = (await card.innerText()).replace(/\s+/g, " ").match(/Status:\s*(.*?)\s*(?:Time in the current status|Retry|Files|\d+s|$)/)?.[1] ?? "";
+        // The card is briefly absent while the page reloads, so a missing card means "not known yet", not an error.
+        const text = await card.innerText({ timeout: 5000 }).catch(() => "");
+        const status = text.replace(/\s+/g, " ").match(/Status:\s*(.*?)\s*(?:Time in the current status|Retry|Files|\d+s|$)/)?.[1] ?? "";
         if (/fail|error/i.test(status)) throw new Error(`Ontology "${ontologyName}" ended in status "${status}"`);
         if (!/active/i.test(status) && ++polls % 6 === 0) {
           await page.reload({ waitUntil: "domcontentloaded" });

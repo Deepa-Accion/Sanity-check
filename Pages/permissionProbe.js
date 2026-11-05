@@ -10,7 +10,7 @@ import { DEFAULT_BASE_URL, projectCard } from './dashboardPage.js';
  * Prerequisite: the project has one uploaded document named `fileName.txt` that is not generated.
  */
 
-const stateOf = async (locator) => {
+export const stateOf = async (locator) => {
   if (!(await locator.count())) return 'absent';
   const disabled = await locator.first().evaluate(
     (n) => n.disabled === true || n.getAttribute('aria-disabled') === 'true' || n.hasAttribute('data-disabled')
@@ -32,7 +32,7 @@ const readMenuItems = async (page) => {
  * one, and menu items arrive one by one) and exposes no "loaded" signal. So read repeatedly until the
  * value has not changed for `stableMs`. Reading too early shows controls a role does not really get.
  */
-async function settle(page, read, { stableMs = 1500, timeout = 15000 } = {}) {
+export async function settle(page, read, { stableMs = 1500, timeout = 15000 } = {}) {
   const started = Date.now();
   let last = JSON.stringify(await read());
   let since = Date.now();
@@ -54,7 +54,7 @@ const settledState = (page, locator) => settle(page, () => stateOf(locator));
  * an open menu, so keep a running union of what was seen and reopen the menu whenever it closes.
  * Done when nothing new has appeared for `stableMs`.
  */
-async function observeMenu(page, openMenu, { stableMs = 2500, timeout = 25000 } = {}) {
+export async function observeMenu(page, openMenu, { stableMs = 2500, timeout = 25000 } = {}) {
   const seen = {};
   const started = Date.now();
   let lastChange = Date.now();

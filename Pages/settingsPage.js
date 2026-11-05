@@ -46,7 +46,8 @@ export class SettingsPage {
     const option = this.page.getByRole('listbox').getByText(projectName, { exact: true });
     await expect(option, `Project "${projectName}" should be selectable in Project Settings`).toBeVisible();
     await option.click();
-    await expect(this.exportButton).toBeVisible();
+    // Every role sees the form; Export/Import/Save are only offered to roles that may use them.
+    await expect(this.page.getByPlaceholder('Enter project description')).toBeVisible({ timeout: 30000 });
   }
 
   /** Edit the selected project's description via Project Settings and confirm the save request succeeded. */
