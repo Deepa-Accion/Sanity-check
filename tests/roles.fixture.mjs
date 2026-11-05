@@ -31,11 +31,26 @@ async function injectSession(page, sessionAuth) {
   });
 }
 
+// The role chosen in the QA Dashboard (server.js passes it as ROLE). `page` acts as that role, so
+// "Viewer" really runs with the Viewer account's credentials.
+const requestedRole = String(process.env.ROLE || "default").toLowerCase();
+const actingSession =
+  requestedRole === "admin" ? adminSession : requestedRole === "viewer" ? viewerSession : defaultSession;
+
 export const test = base.extend({
-  // Default page — injects the default user's session (same behaviour as auth-healing.fixture.mjs)
+  // Acting page - signed in as the role selected for this run (default = End User account).
   page: async ({ page }, use) => {
-    await injectSession(page, defaultSession);
+    await injectSession(page, actingSession);
     await use(page);
+  },
+
+  // Owner page - always the default (End User) account, whatever role the run acts as.
+  ownerPage: async ({ browser }, use) => {
+    const ctx = await browser.newContext();
+    const pg  = await ctx.newPage();
+    await injectSession(pg, defaultSession);
+    await use(pg);
+    await ctx.close();
   },
 
   // Admin page — fresh browser context so admin session never mixes with the default session

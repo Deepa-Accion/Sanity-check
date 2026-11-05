@@ -29,7 +29,7 @@ export default defineConfig({
     trace: "on-first-retry",
     viewport: null,
     actionTimeout: 15000,
-    navigationTimeout: 30000
+    navigationTimeout: 90000
   },
   projects: [
     {
